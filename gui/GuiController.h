@@ -5,9 +5,11 @@
 #include "../app/Application.h"
 #include "../core/Timestamp.h"
 #include <atomic>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace loganalyzer {
 
@@ -29,6 +31,10 @@ private:
   void renderProgressBar();
   void renderResults();
   void renderErrorDialog();
+  void renderFilePicker();
+
+  // File picker helpers
+  void updateFileList();
 
   // Analysis thread management
   void startAnalysis();
@@ -63,6 +69,13 @@ private:
   // UI flags
   bool useTimeFilter_;
   bool useKeyword_;
+
+  // File Picker State
+  bool showFilePicker_;
+  std::filesystem::path currentPickerDir_;
+  std::vector<std::filesystem::path> pickerFiles_;
+  std::vector<std::filesystem::path> pickerDirs_;
+  char pickerSearch_[64];
 };
 
 } // namespace loganalyzer
