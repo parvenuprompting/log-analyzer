@@ -1,0 +1,31 @@
+name: C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: install dependencies
+      run: |
+        brew install glfw
+        brew install grep
+
+    - name: Build CLI
+      run: make log_analyzer
+
+    - name: Build Tests
+      run: make build-tests
+
+    - name: Run Tests
+      run: make test
+
+    - name: Build GUI
+      run: make build-gui
