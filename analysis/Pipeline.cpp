@@ -6,18 +6,32 @@
 #include "TimeRangeFilter.h"
 #include "TopErrorAnalyzer.h"
 #include <memory>
+#include <sys/stat.h>
 #include <vector>
 
 namespace loganalyzer {
 
 AnalysisResult Pipeline::run(const std::string &inputPath,
-                             const AnalysisContext &context) {
+                             const AnalysisContext &context,
+                             ProgressCallback progressCallback,
+                             bool *wasCancelled) {
   AnalysisResult result;
+
+  if (wasCancelled) {
+    *wasCancelled = false;
+  }
 
   // Open file
   FileReader reader(inputPath);
   if (!reader.isOpen()) {
     return result; // Empty result on failure
+  }
+
+  // Get file size for progress reporting
+  struct stat st;
+  uint64_t fileSize = 0;
+  if (stat(inputPath.c_str(), &st) == 0) {
+    fileSize = st.st_size;
   }
 
   // Create filter
@@ -33,12 +47,32 @@ AnalysisResult Pipeline::run(const std::string &inputPath,
         std::make_unique<KeywordHitAnalyzer>(context.keyword.value()));
   }
 
-  // Streaming processing
+  // Streaming processing with progress reporting
   std::string line;
   size_t lineNumber;
+  uint64_t bytesProcessed = 0;
+  uint64_t lastReportedProgress = 0;
+  const uint64_t progressInterval = fileSize / 100; // Report every 1%
 
   while (reader.nextLine(line, lineNumber)) {
     result.totalLines++;
+    bytesProcessed += line.size() + 1; // +1 for newline
+
+    // Progress callback (check periodically, not every line for performance)
+    if (progressCallback && fileSize > 0) {
+      if (bytesProcessed - lastReportedProgress >= progressInterval) {
+        float progress =
+            static_cast<float>(bytesProcessed) / static_cast<float>(fileSize);
+        if (!progressCallback(progress)) {
+          // Cancellation requested
+          if (wasCancelled) {
+            *wasCancelled = true;
+          }
+          return result;
+        }
+        lastReportedProgress = bytesProcessed;
+      }
+    }
 
     // Parse line
     ParseResult parseResult = LogParser::parse(line, lineNumber);
@@ -65,6 +99,11 @@ AnalysisResult Pipeline::run(const std::string &inputPath,
       const ParseError &error = std::get<ParseError>(parseResult);
       result.parseErrors[error.code]++;
     }
+  }
+
+  // Final progress report (100%)
+  if (progressCallback) {
+    progressCallback(1.0f);
   }
 
   // Finalize all analyzers

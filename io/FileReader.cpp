@@ -33,4 +33,10 @@ bool FileReader::isOpen() const { return file_.is_open(); }
 
 std::string FileReader::getError() const { return errorMessage_; }
 
+void FileReader::close() {
+  if (file_.is_open()) {
+    file_.close();
+  }
+}
+
 } // namespace loganalyzer

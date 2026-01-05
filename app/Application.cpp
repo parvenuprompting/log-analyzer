@@ -5,16 +5,24 @@
 
 namespace loganalyzer {
 
-AppResult Application::run(const AppRequest &request) {
+AppResult Application::run(const AppRequest &request,
+                           ProgressCallback progressCallback) {
   AppResult result;
+  runHeadless(request, result, progressCallback);
+  return result;
+}
+
+void Application::runHeadless(const AppRequest &request, AppResult &result,
+                              ProgressCallback progressCallback) {
   result.status = AppStatus::OK;
   result.message = "Analysis completed successfully";
+  result.wasCancelled = false;
 
   // Validate input
   if (request.inputPath.empty()) {
     result.status = AppStatus::INVALID_ARGS;
     result.message = "Input path cannot be empty";
-    return result;
+    return;
   }
 
   // Check if file exists and is readable
@@ -22,8 +30,11 @@ AppResult Application::run(const AppRequest &request) {
   if (!testReader.isOpen()) {
     result.status = AppStatus::INPUT_IO_ERROR;
     result.message = testReader.getError();
-    return result;
+    return;
   }
+
+  // Get file size for progress reporting
+  testReader.close();
 
   // Build analysis context
   AnalysisContext context;
@@ -31,20 +42,30 @@ AppResult Application::run(const AppRequest &request) {
   context.toTs = request.toTimestamp;
   context.keyword = request.keyword;
 
-  // Run pipeline
+  // Run pipeline with progress callback
   try {
-    result.analysisResult = Pipeline::run(request.inputPath, context);
-  } catch (const std::exception &e) {
-    result.status = AppStatus::INTERNAL_ERROR;
-    result.message = std::string("Internal error: ") + e.what();
-    return result;
-  } catch (...) {
-    result.status = AppStatus::INTERNAL_ERROR;
-    result.message = "Unknown internal error";
-    return result;
-  }
+    result.analysisResult = Pipeline::run(
+        request.inputPath, context, progressCallback, &result.wasCancelled);
 
-  return result;
+    if (result.wasCancelled) {
+      result.status = AppStatus::OK; // Cancellation is not an error
+      result.message = "Analysis cancelled by user";
+    }
+  } catch (const std::runtime_error &e) {
+    // Pipeline-specific errors
+    result.status = AppStatus::PIPELINE_ERROR;
+    result.message = std::string("Pipeline error: ") + e.what();
+    return;
+  } catch (const std::exception &e) {
+    // Generic errors
+    result.status = AppStatus::IO_ERROR;
+    result.message = std::string("I/O error: ") + e.what();
+    return;
+  } catch (...) {
+    result.status = AppStatus::IO_ERROR;
+    result.message = "Unknown error during analysis";
+    return;
+  }
 }
 
 } // namespace loganalyzer

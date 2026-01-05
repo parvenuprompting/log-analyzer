@@ -134,7 +134,9 @@ int main(int argc, char *argv[]) {
       return 3;
     case AppStatus::OUTPUT_IO_ERROR:
       return 4;
-    case AppStatus::INTERNAL_ERROR:
+    case AppStatus::PIPELINE_ERROR:
+    case AppStatus::PARSER_ERROR:
+    case AppStatus::IO_ERROR:
       return 4;
     default:
       return 4;

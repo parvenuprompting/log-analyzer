@@ -16,6 +16,9 @@ public:
   bool isOpen() const;
   std::string getError() const;
 
+  // Close file explicitly (usually auto-closed in destructor)
+  void close();
+
 private:
   std::ifstream file_;
   size_t currentLine_;
