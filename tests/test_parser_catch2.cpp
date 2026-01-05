@@ -95,3 +95,27 @@ TEST_CASE("Timestamp validation rejects invalid dates", "[timestamp]") {
     CHECK_FALSE(Timestamp::parse("2026-04-31 10:30:15", ts));
   }
 }
+
+TEST_CASE("LogParser handles edge cases", "[parser][edge]") {
+  SECTION("Empty line is rejected") {
+    ParseResult res = LogParser::parse("", 1);
+    REQUIRE(std::holds_alternative<ParseError>(res));
+    CHECK(std::get<ParseError>(res).code == ParseErrorCode::BadFormat);
+  }
+
+  SECTION("Line too short is rejected") {
+    ParseResult res = LogParser::parse("[2026]", 2);
+    REQUIRE(std::holds_alternative<ParseError>(res));
+    CHECK(std::get<ParseError>(res).code == ParseErrorCode::BadFormat);
+  }
+
+  SECTION("Missing closing brackets") {
+    // Missing timestamp bracket
+    ParseResult res1 = LogParser::parse("[2026-01-01 10:00:00 [INFO] Msg", 3);
+    REQUIRE(std::holds_alternative<ParseError>(res1));
+
+    // Missing level bracket
+    ParseResult res2 = LogParser::parse("[2026-01-01 10:00:00] [INFO Msg", 4);
+    REQUIRE(std::holds_alternative<ParseError>(res2));
+  }
+}

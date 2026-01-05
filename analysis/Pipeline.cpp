@@ -52,7 +52,12 @@ AnalysisResult Pipeline::run(const std::string &inputPath,
   size_t lineNumber;
   uint64_t bytesProcessed = 0;
   uint64_t lastReportedProgress = 0;
-  const uint64_t progressInterval = fileSize / 100; // Report every 1%
+  // Report every 1% or 1MB, whichever is larger, to avoid too frequent
+  // callbacks on small files and ensure we don't divide by zero logic if
+  // fileSize is small (though here we use subtraction) std::max ensures it's
+  // never 0 if we pick a minimum like 1024.
+  const uint64_t progressInterval =
+      std::max<uint64_t>(fileSize / 100, 1024 * 1024);
 
   while (reader.nextLine(line, lineNumber)) {
     result.totalLines++;

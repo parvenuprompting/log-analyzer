@@ -2,30 +2,27 @@ name: C++ CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: install dependencies
-      run: |
-        brew install glfw
-        brew install grep
+      - name: install dependencies
+        run: |
+          brew install glfw
+          brew install cmake
 
-    - name: Build CLI
-      run: make log_analyzer
+      - name: Configure CMake
+        run: cmake -B build -S .
 
-    - name: Build Tests
-      run: make build-tests
+      - name: Build
+        run: cmake --build build --config Release
 
-    - name: Run Tests
-      run: make test
-
-    - name: Build GUI
-      run: make build-gui
+      - name: Test
+        run: cd build && ctest --output-on-failure

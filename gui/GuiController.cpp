@@ -237,7 +237,14 @@ void GuiController::startAnalysis() {
       return !cancelRequested_.load();
     };
 
-    lastResult_ = app_.run(currentRequest_, callback);
+    AppResult result = app_.run(currentRequest_, callback);
+
+    {
+      // Assuming resultMutex_ is a member of GuiController
+      std::lock_guard<std::mutex> lock(resultMutex_);
+      lastResult_ = result;
+    }
+
     analysisComplete_ = true;
   });
 }
@@ -249,6 +256,7 @@ void GuiController::checkAnalysisComplete() {
     }
     isAnalyzing_ = false;
 
+    std::lock_guard<std::mutex> lock(resultMutex_);
     if (lastResult_.wasCancelled) {
       hasResults_ = false;
       showError_ = false;

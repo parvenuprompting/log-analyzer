@@ -6,6 +6,7 @@
 #include "../core/Timestamp.h"
 #include <atomic>
 #include <filesystem>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <thread>
@@ -52,6 +53,7 @@ private:
 
   bool hasResults_;
   AppResult lastResult_;
+  mutable std::mutex resultMutex_; // Protects shared result data
 
   bool showError_;
   std::string errorMessage_;
