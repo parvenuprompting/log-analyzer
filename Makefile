@@ -53,7 +53,7 @@ main.o: main.cpp
 
 # Build tests
 .PHONY: build-tests
-build-tests: $(TEST_PARSER) $(TEST_ANALYZERS)
+build-tests: $(TEST_PARSER) $(TEST_ANALYZERS) $(TEST_CATCH2)
 
 $(TEST_PARSER): $(CORE_OBJS) $(TESTS_DIR)/test_parser.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
@@ -134,3 +134,26 @@ $(GUI_TARGET): $(CORE_OBJS) $(ANALYSIS_OBJS) $(IO_OBJS) $(APP_OBJS) $(IMGUI_OBJS
 
 $(GUI_DIR)/main_gui.o: $(GUI_DIR)/main_gui.cpp
 	$(CXX) $(GUI_CXXFLAGS) -c -o $@ $<
+
+# Catch2 tests
+CATCH2_DIR = external/catch2
+TEST_CATCH2 = test_catch2
+
+$(TESTS_DIR)/test_main_catch2.o: $(TESTS_DIR)/test_main_catch2.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(TESTS_DIR)/test_parser_catch2.o: $(TESTS_DIR)/test_parser_catch2.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(TESTS_DIR)/test_analyzers_catch2.o: $(TESTS_DIR)/test_analyzers_catch2.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(CATCH2_DIR)/catch_amalgamated.o: $(CATCH2_DIR)/catch_amalgamated.cpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(TEST_CATCH2): $(CORE_OBJS) $(ANALYSIS_OBJS) $(IO_OBJS) \
+                $(CATCH2_DIR)/catch_amalgamated.o \
+                $(TESTS_DIR)/test_main_catch2.o \
+                $(TESTS_DIR)/test_parser_catch2.o \
+                $(TESTS_DIR)/test_analyzers_catch2.o
+	$(CXX) $(CXXFLAGS) -o $@ $^
