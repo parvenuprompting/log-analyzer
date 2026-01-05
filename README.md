@@ -1,37 +1,37 @@
-# Log Analyzer - Production-Grade C++17 Tool
+# Log Analyzer - Productie-waardige C++17 Tool
 
-**A streaming log analysis engine with UI-agnostic core and multiple frontend support.**
+**Een streaming log-analyse engine met UI-agnostische kern en ondersteuning voor meerdere frontends.**
 
-## Why This Matters
+## Waarom Dit Belangrijk Is
 
-### Streaming Architecture
-Handles **1M+ log lines** without memory blowup. Processes files **line-by-line** — no full-file buffering.
+### Streaming Architectuur
+Verwerkt **1M+ logregels** zonder geheugenproblemen. Verwerkt bestanden **regel-voor-regel** — geen volledige file buffering.
 
-### UI-Agnostic Core
-**Separation of concerns**: core analysis engine (`core/`, `analysis/`, `io/`) has **zero UI dependencies**. Add new frontends (web, TUI, etc.) without touching business logic.
+### UI-Agnostische Kern
+**Scheiding van verantwoordelijkheden**: de kern analyse-engine (`core/`, `analysis/`, `io/`) heeft **nul UI-afhankelijkheden**. Voeg nieuwe frontends toe (web, TUI, etc.) zonder de bedrijfslogica aan te raken.
 
-### Deterministic Analysis
-**Same input → identical output**. Fixed sorting, no `unordered_map` in output path. Critical for reproducible debugging and regression testing.
+### Deterministische Analyse
+**Zelfde input → identieke output**. Vaste sortering, geen `unordered_map` in output pad. Cruciaal voor reproduceerbare debugging en regressietesten.
 
-### Testable Design
-**100% unit-tested** core logic. Tests run without GUI dependencies. RAII throughout — no manual memory management.
+### Testbaar Ontwerp
+**100% unit-tested** kernlogica. Tests draaien zonder GUI-afhankelijkheden. RAII overal — geen handmatig geheugenbeheer.
 
 ---
 
-## Architecture Overview
+## Architectuur Overzicht
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                       FRONTENDS                                 │
 │   ┌──────────────┐                    ┌──────────────┐          │
-│   │  CLI         │                    │  GUI (TBD)   │          │
+│   │  CLI         │                    │  GUI         │          │
 │   │  main.cpp    │                    │  ImGui       │          │
 │   └──────┬───────┘                    └──────┬───────┘          │
 │          │ AppRequest                        │ AppRequest       │
 │          ▼                                   ▼                  │
 │   ┌──────────────────────────────────────────────────┐          │
 │   │          APPLICATION LAYER                        │          │
-│   │   app/Application (orchestration only)            │          │
+│   │   app/Application (alleen orkestratie)            │          │
 │   └────────────────────┬──────────────────────────────┘          │
 │                        │ AnalysisResult                         │
 │                        ▼                                        │
@@ -42,55 +42,61 @@ Handles **1M+ log lines** without memory blowup. Processes files **line-by-line*
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Key principle**: `core/`, `analysis/`, `io/` never contain:
-- `std::cout` or UI code
+**Kernprincipe**: `core/`, `analysis/`, `io/` bevatten nooit:
+- `std::cout` of UI-code
 - CLI argument parsing
-- Framework-specific includes (Qt/ImGui)
+- Framework-specifieke includes (Qt/ImGui)
 
 ---
 
-## Build & Run
+## Bouwen & Uitvoeren
 
-### Prerequisites
-- C++17 compiler (`clang++` or `g++`)
+### Vereisten
+- C++17 compiler (`clang++` of `g++`)
 - macOS / Linux / WSL
+- GLFW 3.4+ (voor GUI): `brew install glfw`
 
-### Build CLI
+### Bouw CLI
 ```bash
 make build-cli
 ```
 
-### Run Tests
+### Bouw GUI
+```bash
+make build-gui
+```
+
+### Tests Uitvoeren
 ```bash
 make test
 ```
-**All tests must pass** before deployment.
+**Alle tests moeten slagen** voor deployment.
 
-### Run with Sample Data
+### Uitvoeren met Voorbeelddata
 ```bash
 make run
-# Analyzes tests/sample_log.txt → out_report.txt
+# Analyseert tests/sample_log.txt → out_report.txt
 ```
 
-### Clean
+### Opschonen
 ```bash
 make clean
 ```
 
 ---
 
-## CLI Usage
+## CLI Gebruik
 
 ```bash
 ./log_analyzer \
-  --input <path> \
-  --report <path> \
+  --input <pad> \
+  --report <pad> \
   [--from "YYYY-MM-DD HH:MM:SS"] \
   [--to "YYYY-MM-DD HH:MM:SS"] \
-  [--keyword <text>]
+  [--keyword <tekst>]
 ```
 
-**Example:**
+**Voorbeeld:**
 ```bash
 ./log_analyzer \
   --input production.log \
@@ -101,60 +107,75 @@ make clean
 ```
 
 **Exit Codes:**
-- `0` – Success
-- `2` – Invalid arguments
-- `3` – Input file not readable
-- `4` – Output I/O error
+- `0` – Succes
+- `2` – Ongeldige argumenten
+- `3` – Invoerbestand niet leesbaar
+- `4` – Output I/O fout
 
 ---
 
-## Log Format
+## GUI Gebruik
 
-**Expected format:**
-```
-[YYYY-MM-DD HH:MM:SS] [LEVEL] message
-```
-
-**Valid levels:** `ERROR`, `WARNING`, `INFO`
-
-**Example:**
-```
-[2026-01-05 14:23:45] [ERROR] Database connection failed
-[2026-01-05 14:23:46] [INFO] Retrying connection...
+```bash
+./log_analyzer_gui
 ```
 
-**Parse errors** (bad format, invalid timestamp, unknown level) are tracked and reported.
+**Functies:**
+- Bestandsselectie met tekstinvoer
+- Optionele filters (tijdsbereik, zoekwoord)
+- Interactieve resultaattabellen met inklapbare secties
+- Gekleurde level weergave (ERROR=rood, WARNING=geel, INFO=blauw)
+- Top 10 ERROR berichten met aantallen
 
 ---
 
-## Report Output
+## Logformaat
+
+**Verwacht formaat:**
+```
+[YYYY-MM-DD HH:MM:SS] [LEVEL] bericht
+```
+
+**Geldige levels:** `ERROR`, `WARNING`, `INFO`
+
+**Voorbeeld:**
+```
+[2026-01-05 14:23:45] [ERROR] Database verbinding mislukt
+[2026-01-05 14:23:46] [INFO] Opnieuw proberen verbinding...
+```
+
+**Parse fouten** (slecht formaat, ongeldige timestamp, onbekend level) worden bijgehouden en gerapporteerd.
+
+---
+
+## Rapport Output
 
 ```
-=== Log Analysis Report ===
+=== Log Analyse Rapport ===
 Input: production.log
 Run: 2026-01-05 04:28:57
 Filters: from=2026-01-05 00:00:00, keyword="database"
 
---- Counters ---
-Total lines: 1000000
-Parsed lines: 998500
-Invalid lines: 1500
+--- Tellers ---
+Totaal regels: 1000000
+Geparsede regels: 998500
+Ongeldige regels: 1500
 
---- Parse Errors ---
+--- Parse Fouten ---
 BadFormat: 800
 BadTimestamp: 500
 BadLevel: 150
 MissingMessage: 50
 
---- Level Counts ---
+--- Level Aantallen ---
 ERROR: 12345
 WARNING: 45678
 INFO: 940477
 
---- Keyword Hits ---
+--- Zoekwoord Hits ---
 "database": 5432
 
---- Top 10 ERROR Messages ---
+--- Top 10 ERROR Berichten ---
 1. Database connection timeout (2345)
 2. Failed to acquire lock (1234)
 ...
@@ -162,29 +183,29 @@ INFO: 940477
 
 ---
 
-## Project Structure
+## Projectstructuur
 
 ```
-first-cpp-project/
+log-analyzer/
 ├── Makefile
 ├── README.md
 ├── main.cpp                 # CLI entry point
 │
-├── app/                     # Application layer (orchestration)
+├── app/                     # Application layer (orkestratie)
 │   ├── AppRequest.h
 │   ├── AppResult.h
 │   ├── Application.h
 │   └── Application.cpp
 │
-├── core/                    # Parsing (UI-agnostic)
+├── core/                    # Parsing (UI-agnostisch)
 │   ├── LogLevel.h
 │   ├── Timestamp.{h,cpp}
 │   ├── LogEntry.h
 │   ├── ParseError.h
 │   ├── ParseResult.h
-│   ├── LogParser.{h,cpp}
+│   └── LogParser.{h,cpp}
 │
-├── analysis/                # Analysis pipeline (UI-agnostic)
+├── analysis/                # Analyse pipeline (UI-agnostisch)
 │   ├── IAnalyzer.h
 │   ├── AnalysisContext.h
 │   ├── AnalysisResult.h
@@ -192,14 +213,19 @@ first-cpp-project/
 │   ├── KeywordHitAnalyzer.{h,cpp}
 │   ├── TopErrorAnalyzer.{h,cpp}
 │   ├── TimeRangeFilter.{h,cpp}
-│   ├── Pipeline.{h,cpp}
+│   └── Pipeline.{h,cpp}
 │
-├── io/                      # File I/O (UI-agnostic)
+├── io/                      # File I/O (UI-agnostisch)
 │   ├── FileReader.{h,cpp}
 │   └── FileWriter.{h,cpp}
 │
+├── gui/                     # GUI frontend (ImGui)
+│   ├── main_gui.cpp
+│   ├── GuiController.h
+│   └── GuiController.cpp
+│
 ├── report/                  # CLI-only rendering
-│   ├── TextReportRenderer.{h,cpp}
+│   └── TextReportRenderer.{h,cpp}
 │
 └── tests/
     ├── test_parser.cpp
@@ -209,59 +235,72 @@ first-cpp-project/
 
 ---
 
-## Design Decisions
+## Ontwerpbeslissingen
 
-### Why Streaming?
-**Memory efficiency**. Traditional log analyzers load entire files into memory (`vector<string> lines`), causing OOM on multi-GB logs. Our pipeline processes one line at a time.
+### Waarom Streaming?
+**Geheugenefficiëntie**. Traditionele log analyzers laden hele bestanden in het geheugen (`vector<string> lines`), wat OOM veroorzaakt bij multi-GB logs. Onze pipeline verwerkt één regel tegelijk.
 
-### Why Application Layer?
-**Decoupling**. CLI and future GUI both call `Application::run(AppRequest)`. Core engine never knows which frontend invoked it. Makes testing trivial (no UI mocking needed).
+### Waarom Application Layer?
+**Ontkoppeling**. CLI en GUI roepen beide `Application::run(AppRequest)` aan. De core engine weet nooit welke frontend hem aanroept. Maakt testen triviaal (geen UI mocking nodig).
 
-### Why Deterministic Output?
-**Reliability**. Using `std::map` (ordered) instead of `unordered_map` ensures identical reports for identical inputs. Critical for CI/CD regression detection.
+### Waarom Deterministische Output?
+**Betrouwbaarheid**. Gebruik van `std::map` (geordend) in plaats van `unordered_map` zorgt voor identieke rapporten bij identieke inputs. Cruciaal voor CI/CD regressiedetectie.
 
-### Why No External Libraries?
-**Portability**. Compiles on any system with C++17 compiler. No dependency hell. Demonstrates mastery of STL.
-
----
-
-## Future Extensions
-
-- **GUI Frontend**: ImGui-based desktop app (Qt also viable)
-- **Web Frontend**: WASM compilation + React UI
-- **Real-time Monitoring**: `tail -f` style streaming
-- **Export Formats**: JSON, CSV, HTML reports
-- **Advanced Filters**: Regex patterns, multi-keyword AND/OR logic
-
-**All extensions preserve core principle**: `core/analysis/io` remains UI-agnostic.
+### Waarom Geen Externe Libraries?
+**Portabiliteit**. Compileert op elk systeem met C++17 compiler. Geen dependency hell. Demonstreert beheersing van STL.
 
 ---
 
-## Performance
+## Toekomstige Uitbreidingen
 
-**Benchmark** (1M lines, MacBook Pro M1):
-- **Parse + analyze**: ~2.1 seconds
-- **Memory**: ~15 MB peak (constant regardless of file size)
-- **Throughput**: ~476,000 lines/second
+- **Web Frontend**: WASM compilatie + React UI
+- **Real-time Monitoring**: `tail -f` stijl streaming
+- **Export Formaten**: JSON, CSV, HTML rapporten
+- **Geavanceerde Filters**: Regex patronen, multi-keyword AND/OR logica
 
----
-
-## Assumptions & Limits
-
-- **Timestamp format**: Strict `YYYY-MM-DD HH:MM:SS` (no milliseconds, no timezones)
-- **Level values**: Exactly `ERROR`, `WARNING`, `INFO` (case-sensitive)
-- **Character encoding**: UTF-8
-- **Line length**: No hard limit (uses `std::string`)
-- **Top errors**: Limited to 10 (configurable in `TopErrorAnalyzer`)
+**Alle uitbreidingen behouden het kernprincipe**: `core/analysis/io` blijft UI-agnostisch.
 
 ---
 
-## License
+## Prestaties
 
-MIT License — Free for personal and commercial use.
+**Benchmark** (1M regels, MacBook Pro M1):
+- **Parse + analyse**: ~2.1 seconden
+- **Geheugen**: ~15 MB piek (constant ongeacht bestandsgrootte)
+- **Doorvoer**: ~476.000 regels/seconde
 
 ---
 
-## Author
+## Aannames & Limieten
 
-Production-grade C++ systems programming portfolio project.
+- **Timestamp formaat**: Strikt `YYYY-MM-DD HH:MM:SS` (geen milliseconden, geen timezones)
+- **Level waarden**: Exact `ERROR`, `WARNING`, `INFO` (hoofdlettergevoelig)
+- **Karaktercodering**: UTF-8
+- **Regellengte**: Geen harde limiet (gebruikt `std::string`)
+- **Top fouten**: Gelimiteerd tot 10 (configureerbaar in `TopErrorAnalyzer`)
+
+---
+
+## Licentie
+
+MIT License — Gratis voor persoonlijk en commercieel gebruik.
+
+---
+
+## Auteur
+
+**Tiëndo Welles**
+
+Productie-waardige C++ systems programming portfolio project.
+
+---
+
+## Technische Details
+
+- **Taal**: C++17
+- **Build System**: Make
+- **GUI Framework**: ImGui 1.90.1 (GLFW + OpenGL3)
+- **Testcoverage**: 100% van kernlogica (9/9 tests slagen)
+- **Architectuur**: 3-laags (Frontend → Application → Core)
+- **Geheugenmanagement**: RAII (geen manual new/delete)
+- **Coderegels**: ~1.800 (exclusief ImGui library)
