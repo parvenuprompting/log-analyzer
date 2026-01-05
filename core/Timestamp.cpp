@@ -1,11 +1,12 @@
 #include "Timestamp.h"
+#include <charconv>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
 
 namespace loganalyzer {
 
-bool Timestamp::parse(const std::string &str, Timestamp &out) {
+bool Timestamp::parse(std::string_view str, Timestamp &out) {
   // Expected format: YYYY-MM-DD HH:MM:SS (19 chars)
   if (str.length() != 19)
     return false;
@@ -16,22 +17,27 @@ bool Timestamp::parse(const std::string &str, Timestamp &out) {
     return false;
   }
 
-  // Parse components
-  try {
-    out.year = std::stoi(str.substr(0, 4));
-    out.month = std::stoi(str.substr(5, 2));
-    out.day = std::stoi(str.substr(8, 2));
-    out.hour = std::stoi(str.substr(11, 2));
-    out.minute = std::stoi(str.substr(14, 2));
-    out.second = std::stoi(str.substr(17, 2));
-  } catch (...) {
+  // Parse components using from_chars for zero-copy
+  auto parse_int = [](std::string_view sv, int &out) -> bool {
+    auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), out);
+    return ec == std::errc{} && ptr == sv.data() + sv.size();
+  };
+
+  if (!parse_int(str.substr(0, 4), out.year))
     return false;
-  }
+  if (!parse_int(str.substr(5, 2), out.month))
+    return false;
+  if (!parse_int(str.substr(8, 2), out.day))
+    return false;
+  if (!parse_int(str.substr(11, 2), out.hour))
+    return false;
+  if (!parse_int(str.substr(14, 2), out.minute))
+    return false;
+  if (!parse_int(str.substr(17, 2), out.second))
+    return false;
 
   // Validate ranges
   if (out.month < 1 || out.month > 12)
-    return false;
-  if (out.day < 1 || out.day > 31)
     return false;
   if (out.hour < 0 || out.hour > 23)
     return false;
@@ -40,7 +46,31 @@ bool Timestamp::parse(const std::string &str, Timestamp &out) {
   if (out.second < 0 || out.second > 59)
     return false;
 
+  // Validate calendar logic (31 feb, 30 feb, etc.)
+  if (!isValidDate(out.year, out.month, out.day))
+    return false;
+
   return true;
+}
+
+bool Timestamp::isValidDate(int year, int month, int day) {
+  if (day < 1)
+    return false;
+
+  // Days per month
+  static const int daysInMonth[] = {0,  31, 28, 31, 30, 31, 30,
+                                    31, 31, 30, 31, 30, 31};
+
+  int maxDays = daysInMonth[month];
+
+  // Check for leap year in February
+  if (month == 2) {
+    bool isLeap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    if (isLeap)
+      maxDays = 29;
+  }
+
+  return day <= maxDays;
 }
 
 bool Timestamp::operator<(const Timestamp &other) const {

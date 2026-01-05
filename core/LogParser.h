@@ -2,6 +2,7 @@
 
 #include "ParseResult.h"
 #include <string>
+#include <string_view>
 
 namespace loganalyzer {
 
@@ -12,7 +13,7 @@ public:
   static ParseResult parse(const std::string &line, size_t lineNumber);
 
 private:
-  static bool parseLogLevel(const std::string &str, LogLevel &out);
+  static bool parseLogLevel(std::string_view str, LogLevel &out);
 };
 
 } // namespace loganalyzer

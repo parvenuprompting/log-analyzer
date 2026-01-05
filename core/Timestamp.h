@@ -2,6 +2,7 @@
 
 #include <ctime>
 #include <string>
+#include <string_view>
 
 namespace loganalyzer {
 
@@ -14,7 +15,8 @@ struct Timestamp {
   int second;
 
   // Parse from YYYY-MM-DD HH:MM:SS (strict, with leading zeros)
-  static bool parse(const std::string &str, Timestamp &out);
+  // Now accepts string_view for zero-copy parsing
+  static bool parse(std::string_view str, Timestamp &out);
 
   // Comparison operators
   bool operator<(const Timestamp &other) const;
@@ -25,6 +27,10 @@ struct Timestamp {
 
   // Convert to string for display
   std::string toString() const;
+
+private:
+  // Validate calendar logic (days per month, leap year)
+  static bool isValidDate(int year, int month, int day);
 };
 
 } // namespace loganalyzer

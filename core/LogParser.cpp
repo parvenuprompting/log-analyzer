@@ -4,69 +4,76 @@ namespace loganalyzer {
 
 ParseResult LogParser::parse(const std::string &line, size_t lineNumber) {
   // Expected format: [YYYY-MM-DD HH:MM:SS] [LEVEL] message
-  // Minimum length check: [19 chars] [3+ chars] 1+ chars = 27+
+  std::string_view sv(line);
 
-  if (line.length() < 27) {
+  // Minimum length check
+  if (sv.length() < 27) {
     return ParseError{ParseErrorCode::BadFormat, line, lineNumber};
   }
 
-  // Check opening bracket
-  if (line[0] != '[') {
+  // Check opening bracket for timestamp
+  if (sv[0] != '[') {
     return ParseError{ParseErrorCode::BadFormat, line, lineNumber};
   }
 
-  // Check closing bracket for timestamp at position 20
-  if (line.length() < 21 || line[20] != ']') {
+  // Find closing bracket for timestamp (more robust than fixed position)
+  size_t tsEnd = sv.find(']', 1);
+  if (tsEnd == std::string_view::npos || tsEnd < 20) {
     return ParseError{ParseErrorCode::BadFormat, line, lineNumber};
   }
 
-  // Extract and parse timestamp
-  std::string tsStr = line.substr(1, 19);
+  // Extract timestamp (zero-copy with string_view)
+  std::string_view tsView = sv.substr(1, tsEnd - 1);
+  if (tsView.length() != 19) {
+    return ParseError{ParseErrorCode::BadFormat, line, lineNumber};
+  }
+
+  // Parse timestamp
   Timestamp ts;
-  if (!Timestamp::parse(tsStr, ts)) {
+  if (!Timestamp::parse(tsView, ts)) {
     return ParseError{ParseErrorCode::BadTimestamp, line, lineNumber};
   }
 
   // Check for space and opening bracket for level
-  if (line[21] != ' ' || line[22] != '[') {
+  if (tsEnd + 2 >= sv.length() || sv[tsEnd + 1] != ' ' ||
+      sv[tsEnd + 2] != '[') {
     return ParseError{ParseErrorCode::BadFormat, line, lineNumber};
   }
 
   // Find closing bracket for level
-  size_t levelEnd = line.find(']', 23);
-  if (levelEnd == std::string::npos) {
+  size_t levelStart = tsEnd + 3;
+  size_t levelEnd = sv.find(']', levelStart);
+  if (levelEnd == std::string_view::npos) {
     return ParseError{ParseErrorCode::BadFormat, line, lineNumber};
   }
 
-  // Extract and parse level
-  std::string levelStr = line.substr(23, levelEnd - 23);
+  // Extract and parse level (zero-copy)
+  std::string_view levelView = sv.substr(levelStart, levelEnd - levelStart);
   LogLevel level;
-  if (!parseLogLevel(levelStr, level)) {
+  if (!parseLogLevel(levelView, level)) {
     return ParseError{ParseErrorCode::BadLevel, line, lineNumber};
   }
 
   // Check for space after level bracket
-  if (levelEnd + 1 >= line.length()) {
-    // No space after level bracket = missing message
+  if (levelEnd + 1 >= sv.length()) {
     return ParseError{ParseErrorCode::MissingMessage, line, lineNumber};
   }
 
-  if (line[levelEnd + 1] != ' ') {
+  if (sv[levelEnd + 1] != ' ') {
     return ParseError{ParseErrorCode::BadFormat, line, lineNumber};
   }
 
-  // Extract message (everything after space)
+  // Extract message (convert to string only once at the end)
   size_t messageStart = levelEnd + 2;
   std::string message;
-  if (messageStart < line.length()) {
-    message = line.substr(messageStart);
+  if (messageStart < sv.length()) {
+    message = std::string(sv.substr(messageStart));
   }
-  // Empty message is valid (message string remains empty)
 
   return LogEntry{ts, level, message};
 }
 
-bool LogParser::parseLogLevel(const std::string &str, LogLevel &out) {
+bool LogParser::parseLogLevel(std::string_view str, LogLevel &out) {
   if (str == "ERROR") {
     out = LogLevel::ERROR;
     return true;
