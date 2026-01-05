@@ -4,8 +4,10 @@
 #include "../app/AppResult.h"
 #include "../app/Application.h"
 #include "../core/Timestamp.h"
+#include <atomic>
 #include <optional>
 #include <string>
+#include <thread>
 
 namespace loganalyzer {
 
@@ -20,11 +22,20 @@ public:
   bool shouldClose() const { return shouldClose_; }
 
 private:
+  void applyModernTheme();
   void renderFileInput();
   void renderFilters();
   void renderAnalyzeButton();
+  void renderProgressBar();
   void renderResults();
   void renderErrorDialog();
+
+  // Analysis thread management
+  void startAnalysis();
+  void checkAnalysisComplete();
+
+  // Progress callback for analysis
+  bool progressCallback(float progress);
 
   // State
   Application app_;
@@ -40,6 +51,14 @@ private:
   std::string errorMessage_;
 
   bool shouldClose_;
+
+  // Analysis state
+  bool isAnalyzing_;
+  std::atomic<float> analysisProgress_;
+  std::atomic<bool> cancelRequested_;
+  std::thread analysisThread_;
+  std::atomic<bool> analysisComplete_;
+  AppRequest currentRequest_;
 
   // UI flags
   bool useTimeFilter_;
