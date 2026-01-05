@@ -14,7 +14,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
 # --- Dependencies ---
 find_package(OpenGL REQUIRED)
-find_library(GLFW_LIB glfw REQUIRED)
+find_package(glfw3 REQUIRED)
 find_library(COCOA_LIB Cocoa)
 find_library(IOKIT_LIB IOKit)
 find_library(COREVIDEO_LIB CoreVideo)
@@ -36,6 +36,8 @@ target_include_directories(imgui PUBLIC
     ${IMGUI_DIR} 
     ${IMGUI_DIR}/backends
 )
+# Link GLFW so that ImGui can find <GLFW/glfw3.h>
+target_link_libraries(imgui PUBLIC glfw)
 
 # --- Core Sources ---
 set(CORE_SOURCES
@@ -64,7 +66,8 @@ add_executable(log_analyzer_gui
     gui/GuiController.cpp
     gui/main_gui.cpp
 )
-target_link_libraries(log_analyzer_gui PRIVATE imgui ${GLFW_LIB} ${COCOA_LIB} ${IOKIT_LIB} ${COREVIDEO_LIB} OpenGL::GL)
+# Link imgui (which links glfw), and macOS frameworks
+target_link_libraries(log_analyzer_gui PRIVATE imgui ${COCOA_LIB} ${IOKIT_LIB} ${COREVIDEO_LIB} OpenGL::GL)
 
 # --- Tests ---
 enable_testing()
