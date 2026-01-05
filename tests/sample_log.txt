@@ -1,0 +1,29 @@
+[2026-01-05 10:30:15] [ERROR] Database connection timeout
+[2026-01-05 10:30:16] [WARNING] High memory usage detected (85%)
+[2026-01-05 10:30:17] [INFO] User authentication successful for user_123
+[2026-01-05 10:30:18] [ERROR] Failed to acquire lock on resource /tmp/data.lock
+[2026-01-05 10:30:19] [ERROR] Database connection timeout
+[2026-01-05 10:30:20] [INFO] Cache hit ratio: 92%
+[2026-01-05 10:30:21] [WARNING] Slow query detected: SELECT * FROM users (450ms)
+[2026-01-05 10:30:22] [ERROR] API rate limit exceeded for client 192.168.1.100
+[2026-01-05 10:30:23] [INFO] Background job completed: email_queue_processor
+[2026-01-05 10:30:24] [ERROR] Database connection timeout
+[2026-01-05 10:30:25] [WARNING] Disk space low on /var/log (15% remaining)
+[2026-01-05 10:30:26] [ERROR] Failed to acquire lock on resource /tmp/data.lock
+[2026-01-05 10:30:27] [INFO] New user registration: user_456
+[2026-01-05 10:30:28] [ERROR] Null pointer exception in payment processor
+[2026-01-05 10:30:29] [WARNING] SSL certificate expires in 30 days
+[2026-01-05 10:30:30] [INFO] Scheduled backup started
+[2026-01-05 10:30:31] [ERROR] Database connection timeout
+[2026-01-05 10:30:32] [WARNING] Connection pool exhausted (max: 100)
+[2026-01-05 10:30:33] [INFO] Request processed in 45ms
+[2026-01-05 10:30:34] [ERROR] Failed to send email notification
+Bad timestamp line without proper format
+[2026-01-05 10:30:35] [INFO] Service health check: OK
+[2026-INVALID-DATE 10:30:36] [ERROR] This should be bad timestamp
+[2026-01-05 10:30:37] [UNKNOWN] This should be bad level
+[2026-01-05 10:30:38] [ERROR]
+[2026-01-05 10:30:39] [ERROR] Failed to acquire lock on resource /tmp/data.lock
+[2026-01-05 10:30:40] [WARNING] Redis connection latency: 250ms
+[2026-01-05 10:30:41] [INFO] User logout: user_123
+[2026-01-05 10:30:42] [ERROR] Database connection timeout

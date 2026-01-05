@@ -1,0 +1,28 @@
+# Build artifacts
+*.o
+log_analyzer
+log_analyzer_gui
+test_parser
+test_analyzers
+
+# Output files
+out_report.txt
+test_output.txt
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# External libraries (downloaded)
+external/imgui/
+
+# Test artifacts
+large_test.log
+large_report.txt
