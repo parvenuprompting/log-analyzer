@@ -75,16 +75,20 @@ graph TD
 git clone https://github.com/parvenuprompting/log-analyzer.git
 cd log_analyzer
 
-# Build CLI and run analysis
-make log_analyzer
-./log_analyzer --input tests/sample_log.txt --report report.txt
+# Configure & Build (CMake)
+mkdir build
+cd build
+cmake ..
+make
 
-# Build GUI app
-make build-gui
+# Run CLI
+./log_analyzer --input ../tests/sample_log.txt --report report.txt
+
+# Run GUI
 ./log_analyzer_gui
 
-# Run Tests (Catch2)
-make test
+# Run Tests
+ctest
 ```
 
 ## 🛠 Design Decisions & Trade-offs
