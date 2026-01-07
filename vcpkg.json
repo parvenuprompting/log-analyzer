@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "log-analyzer",
+  "version": "1.0.0",
+  "dependencies": [
+    "glfw3",
+    "opengl"
+  ],
+  "builtin-baseline": "2024.01.12"
+}

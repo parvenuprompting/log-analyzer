@@ -1,16 +1,17 @@
 #pragma once
 
+#include "ILogParser.h"
 #include "ParseResult.h"
 #include <string>
 #include <string_view>
 
 namespace loganalyzer {
 
-class LogParser {
+class StandardLogParser : public ILogParser {
 public:
   // Stateless parser: parse single line
   // Expected format: [YYYY-MM-DD HH:MM:SS] [LEVEL] message
-  static ParseResult parse(std::string_view line, size_t lineNumber);
+  ParseResult parse(std::string_view line, size_t lineNumber) const override;
 
 private:
   static bool parseLogLevel(std::string_view str, LogLevel &out);

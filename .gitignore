@@ -1,28 +1,35 @@
-# Build artifacts
+# Build Artifacts
+build/
 *.o
+*.app
+*.dSYM
+
+# Executables (if not in build/)
 log_analyzer
 log_analyzer_gui
+log_analyzer_gui_*
 test_parser
 test_analyzers
+test_catch2
+unit_tests
 
-# Output files
-out_report.txt
-test_output.txt
+# Runtime & Config
 *.log
+resources/MyIcon.iconset
+log_analyzer_config.ini
+imgui.ini
 
-# IDE
+# Test Output
+test_output.txt
+tests/test_output.txt
+out_report.txt
+large_test.log
+large_report.txt
+
+# OS & IDE
+.DS_Store
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# macOS
-.DS_Store
-
-# External libraries (downloaded)
-external/imgui/
-
-# Test artifacts
-large_test.log
-large_report.txt

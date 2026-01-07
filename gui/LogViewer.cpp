@@ -1,43 +1,90 @@
+#include "../external/IconsFontAwesome6.h"
 #include "../external/imgui/imgui.h"
 #include "GuiController.h"
 
 namespace loganalyzer {
 
 void GuiController::openLogForViewing(const std::string &path) {
+  if (indexerThread_.joinable()) {
+    // We don't want to block the UI, but we should ensure we don't leak
+    // threads. In a real app, we might use a cancellation token. For now, we
+    // join it (which might cause a small freeze if a thread was busy), but
+    // usually it's fast enough.
+    indexerThread_.join();
+  }
+
+  isIndexing_ = true;
+  indexingProgress_ = 0.0f;
+  indexerThread_ = std::thread(&GuiController::indexFileAsync, this, path);
+}
+
+void GuiController::indexFileAsync(const std::string &path) {
   try {
-    logFile_ = std::make_unique<MemoryMappedFile>(path);
-    if (!logFile_->isOpen()) {
-      logFile_.reset();
+    auto file = std::make_unique<MemoryMappedFile>(path);
+    if (!file->isOpen()) {
+      isIndexing_ = false;
       return;
     }
 
-    // Index lines for clipper
-    lineOffsets_.clear();
-    lineOffsets_.reserve(1000000); // Pre-allocate decent size
+    std::string_view data = file->getView();
+    std::vector<size_t> localOffsets;
 
-    std::string_view data = logFile_->getView();
-    if (data.empty())
-      return;
+    if (!data.empty()) {
+      // Memory Allocation Strategy (The "10GB Fix")
+      // Average line length ~120 chars.
+      size_t estimatedLines = data.size() / 120;
+      localOffsets.reserve(estimatedLines + 100);
 
-    lineOffsets_.push_back(0);
-    size_t pos = 0;
-    while (true) {
-      pos = data.find('\n', pos);
-      if (pos == std::string_view::npos)
-        break;
-      pos++; // skip newline
-      if (pos < data.size()) {
-        lineOffsets_.push_back(pos);
-      } else {
-        break;
+      localOffsets.push_back(0);
+      size_t pos = 0;
+      size_t totalSize = data.size();
+      size_t lastUpdatePos = 0;
+
+      while (true) {
+        pos = data.find('\n', pos);
+        if (pos == std::string_view::npos)
+          break;
+
+        pos++; // skip newline
+        if (pos < totalSize) {
+          localOffsets.push_back(pos);
+
+          // Update progress every 1MB of processed data roughly
+          if (pos - lastUpdatePos > 1024 * 1024) {
+            indexingProgress_ = (float)pos / (float)totalSize;
+            lastUpdatePos = pos;
+          }
+        } else {
+          break;
+        }
       }
     }
+
+    // Success: Swap into controller state
+    {
+      std::lock_guard<std::mutex> lock(viewerMutex_);
+      lineOffsets_ = std::move(localOffsets);
+      logFile_ = std::move(file);
+    }
   } catch (...) {
-    logFile_.reset();
+    // Error
   }
+  isIndexing_ = false;
+  indexingProgress_ = 1.0f;
 }
 
 void GuiController::renderLogViewer() {
+  if (isIndexing_) {
+    ImGui::Text(ICON_FA_SPINNER " Indexing Log File... %.1f%%",
+                indexingProgress_ * 100.0f);
+    ImGui::ProgressBar(indexingProgress_, ImVec2(-1, 0));
+    ImGui::TextDisabled(
+        "Please wait while the file is being indexed for efficient viewing.");
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(viewerMutex_);
+
   if (!logFile_ || !logFile_->isOpen()) {
     ImGui::TextDisabled("No log file loaded for viewing.");
     return;

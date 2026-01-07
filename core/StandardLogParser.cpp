@@ -1,4 +1,4 @@
-#include "LogParser.h"
+#include "StandardLogParser.h"
 
 namespace loganalyzer {
 
@@ -9,7 +9,8 @@ constexpr size_t TIMESTAMP_LENGTH = 19;  // YYYY-MM-DD HH:MM:SS
 constexpr size_t TIMESTAMP_MIN_END = 20; // Length of [ + TIMESTAMP + ]
 } // namespace
 
-ParseResult LogParser::parse(std::string_view sv, size_t lineNumber) {
+ParseResult StandardLogParser::parse(std::string_view sv,
+                                     size_t lineNumber) const {
   // Expected format: [YYYY-MM-DD HH:MM:SS] [LEVEL] message
 
   // Minimum length check
@@ -81,7 +82,7 @@ ParseResult LogParser::parse(std::string_view sv, size_t lineNumber) {
   return LogEntry{ts, level, sv, message};
 }
 
-bool LogParser::parseLogLevel(std::string_view str, LogLevel &out) {
+bool StandardLogParser::parseLogLevel(std::string_view str, LogLevel &out) {
   if (str == "ERROR") {
     out = LogLevel::ERROR;
     return true;

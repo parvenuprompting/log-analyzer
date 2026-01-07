@@ -65,7 +65,7 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
   GLFWwindow *window =
-      glfwCreateWindow(1280, 720, "Log Analyzer Pro", nullptr, nullptr);
+      glfwCreateWindow(1600, 900, "Log Analyzer Pro", nullptr, nullptr);
   if (window == nullptr)
     return 1;
 
@@ -102,7 +102,13 @@ int main() {
   icons_config.PixelSnapH = true;
   icons_config.GlyphMinAdvanceX = fontSize;
 
-  const char *faPath = "external/fa-solid-900.ttf";
+  const char *faPath = "resources/fa-solid-900.ttf";
+  if (!std::filesystem::exists(faPath)) {
+    faPath = "../Resources/fa-solid-900.ttf";
+  }
+  if (!std::filesystem::exists(faPath)) {
+    faPath = "external/fa-solid-900.ttf";
+  }
   if (!std::filesystem::exists(faPath)) {
     faPath = "../external/fa-solid-900.ttf";
   }
@@ -125,12 +131,12 @@ int main() {
   // Load Background Texture
   GLuint bgTexture = 0;
   int bgWidth = 0, bgHeight = 0;
-  bool bgLoaded = LoadTextureFromFile("background_calm.png", &bgTexture,
-                                      &bgWidth, &bgHeight);
+  bool bgLoaded = LoadTextureFromFile("resources/background_calm.png",
+                                      &bgTexture, &bgWidth, &bgHeight);
   if (!bgLoaded) {
-    // Fallback to previous
-    bgLoaded =
-        LoadTextureFromFile("background.png", &bgTexture, &bgWidth, &bgHeight);
+    // Fallback: Try MacOS Bundle Resources path
+    bgLoaded = LoadTextureFromFile("../Resources/background_calm.png",
+                                   &bgTexture, &bgWidth, &bgHeight);
   }
 
   loganalyzer::GuiController controller;

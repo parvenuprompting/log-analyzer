@@ -43,7 +43,8 @@ target_link_libraries(imgui PUBLIC glfw)
 
 # --- Core Sources ---
 set(CORE_SOURCES
-    core/LogParser.cpp
+    core/StandardLogParser.cpp
+    core/PatternLogParser.cpp
     core/Timestamp.cpp
     core/ConfigManager.cpp
     io/MemoryMappedFile.cpp
@@ -65,11 +66,19 @@ add_executable(log_analyzer
 )
 
 # --- GUI Executable ---
-add_executable(log_analyzer_gui
+add_executable(log_analyzer_gui MACOSX_BUNDLE
     ${CORE_SOURCES}
     gui/GuiController.cpp
     gui/LogViewer.cpp
     gui/main_gui.cpp
+    resources/AppIcon.icns
+    resources/background_calm.png
+    resources/fa-solid-900.ttf
+)
+
+set_target_properties(log_analyzer_gui PROPERTIES
+    MACOSX_BUNDLE_ICON_FILE "AppIcon.icns"
+    RESOURCE "resources/AppIcon.icns;resources/background_calm.png;resources/fa-solid-900.ttf"
 )
 # Link imgui (which links glfw), and macOS frameworks
 target_link_libraries(log_analyzer_gui PRIVATE imgui ${COCOA_LIB} ${IOKIT_LIB} ${COREVIDEO_LIB} OpenGL::GL)
@@ -81,6 +90,7 @@ add_executable(unit_tests
     ${CORE_SOURCES}
     tests/test_parser_catch2.cpp
     tests/test_analyzers_catch2.cpp
+    tests/test_pattern_parser.cpp
     tests/test_main_catch2.cpp
     external/catch2/catch_amalgamated.cpp
 )

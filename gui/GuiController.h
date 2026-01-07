@@ -18,6 +18,7 @@ namespace loganalyzer {
 class GuiController {
 public:
   GuiController();
+  ~GuiController();
 
   // Main render loop (called every frame)
   void render();
@@ -33,7 +34,12 @@ private:
   void renderProgressBar();
   void renderResults();
   void renderErrorDialog();
+  void renderAboutDialog();
   void renderFilePicker();
+
+  // Advanced Visualizations
+  void renderTimeline();
+  void renderHeatmap();
 
   // File picker helpers
   void updateFileList();
@@ -58,6 +64,7 @@ private:
 
   bool showError_;
   std::string errorMessage_;
+  bool showAbout_;
 
   bool shouldClose_;
 
@@ -72,6 +79,8 @@ private:
   // UI flags
   bool useTimeFilter_;
   bool useKeyword_;
+  bool useCustomParser_;
+  std::string customPattern_;
 
   // File Picker State
   bool showFilePicker_;
@@ -84,8 +93,13 @@ private:
   void renderLogViewer();
   std::unique_ptr<MemoryMappedFile> logFile_;
   std::vector<size_t> lineOffsets_; // Cache of line start positions
+  mutable std::mutex viewerMutex_;  // Protects logFile_ and lineOffsets_
   bool showLogViewer_;
+  std::atomic<bool> isIndexing_;
+  std::atomic<float> indexingProgress_;
+  std::thread indexerThread_;
   void openLogForViewing(const std::string &path);
+  void indexFileAsync(const std::string &path);
 };
 
 } // namespace loganalyzer

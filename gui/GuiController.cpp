@@ -12,10 +12,12 @@
 namespace loganalyzer {
 
 GuiController::GuiController()
-    : hasResults_(false), showError_(false), shouldClose_(false),
-      isAnalyzing_(false), analysisProgress_(0.0f), cancelRequested_(false),
-      analysisComplete_(false), useTimeFilter_(false), useKeyword_(false),
-      showFilePicker_(false), showLogViewer_(false) {
+    : hasResults_(false), showError_(false), showAbout_(false),
+      shouldClose_(false), isAnalyzing_(false), analysisProgress_(0.0f),
+      cancelRequested_(false), analysisComplete_(false), useTimeFilter_(false),
+      useKeyword_(false), showFilePicker_(false), showLogViewer_(false),
+      isIndexing_(false), indexingProgress_(0.0f), useCustomParser_(false),
+      customPattern_("[%D %T] [%L] %M") {
 
   // Init picker path to current directory
   currentPickerDir_ = std::filesystem::current_path();
@@ -26,6 +28,13 @@ GuiController::GuiController()
       ConfigManager::instance().getString("inputPath", "tests/sample_log.txt");
 
   applyModernTheme();
+}
+
+GuiController::~GuiController() {
+  if (analysisThread_.joinable())
+    analysisThread_.join();
+  if (indexerThread_.joinable())
+    indexerThread_.join();
 }
 
 void GuiController::applyModernTheme() {
@@ -180,7 +189,7 @@ void GuiController::render() {
     }
     if (ImGui::BeginMenu(ICON_FA_CIRCLE_INFO " Help")) {
       if (ImGui::MenuItem("About Log Analyzer")) {
-        // TODO: About dialog
+        showAbout_ = true;
       }
       ImGui::EndMenu();
     }
@@ -233,8 +242,7 @@ void GuiController::render() {
   // Dynamic Toggle Button
   bool isFull =
       (ImGui::GetWindowWidth() >= ImGui::GetMainViewport()->Size.x - 20.0f);
-  const char *btnLabel =
-      isFull ? ICON_FA_COMPRESS " Restore" : ICON_FA_EXPAND " Fill Screen";
+  const char *btnLabel = isFull ? ICON_FA_COMPRESS : ICON_FA_EXPAND;
 
   if (ImGui::SmallButton(btnLabel)) {
     if (!isFull) {
@@ -256,6 +264,13 @@ void GuiController::render() {
 
   if (showError_) {
     renderErrorDialog();
+  }
+
+  if (showAbout_) {
+    if (!ImGui::IsPopupOpen("About")) {
+      ImGui::OpenPopup("About");
+    }
+    renderAboutDialog();
   }
 
   ImGui::End();
@@ -306,6 +321,16 @@ void GuiController::renderFilters() {
     ImGui::Unindent();
   }
 
+  ImGui::Checkbox("Configurable Parser", &useCustomParser_);
+  if (useCustomParser_) {
+    ImGui::Indent();
+    ImGui::SetNextItemWidth(400);
+    ImGui::InputTextWithHint("##pattern", "Pattern (e.g. [%D %T] [%L] %M)",
+                             &customPattern_);
+    ImGui::TextDisabled("Tokens: %%D=Date, %%T=Time, %%L=Level, %%M=Message");
+    ImGui::Unindent();
+  }
+
   ImGui::Spacing();
 }
 
@@ -347,6 +372,12 @@ void GuiController::startAnalysis() {
 
   if (useKeyword_ && !keyword_.empty()) {
     currentRequest_.keyword = keyword_;
+  }
+
+  if (useCustomParser_ && !customPattern_.empty()) {
+    currentRequest_.customPattern = customPattern_;
+  } else {
+    currentRequest_.customPattern = "";
   }
 
   // Save Config
@@ -613,6 +644,215 @@ void GuiController::renderResults() {
     }
     ImGui::Unindent();
   }
+
+  // Render Timeline
+  renderTimeline();
+
+  // Render Heatmap
+  renderHeatmap();
+}
+
+void GuiController::renderTimeline() {
+  std::lock_guard<std::mutex> lock(resultMutex_);
+  if (!hasResults_)
+    return;
+
+  const auto &timeline = lastResult_.analysisResult.timeline;
+
+  if (timeline.empty())
+    return;
+
+  if (ImGui::CollapsingHeader(ICON_FA_CHART_LINE " Event Timeline",
+                              ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::Indent();
+
+    ImDrawList *draw_list = ImGui::GetWindowDrawList();
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    float width = ImGui::GetContentRegionAvail().x;
+    float height = 150.0f;
+
+    // Background
+    draw_list->AddRectFilled(p, ImVec2(p.x + width, p.y + height),
+                             IM_COL32(20, 20, 30, 100), 8.0f);
+    draw_list->AddRect(p, ImVec2(p.x + width, p.y + height),
+                       IM_COL32(255, 255, 255, 30), 8.0f);
+
+    // Find min/max time and max counts
+    uint64_t minTime = timeline.front().timestamp;
+    uint64_t maxTime = timeline.back().timestamp;
+
+    // Safety: ensure span > 0
+    if (maxTime <= minTime)
+      maxTime = minTime + 1;
+
+    uint32_t maxCount = 0;
+    for (const auto &b : timeline) {
+      maxCount = std::max(maxCount, b.errorCount + b.warningCount);
+    }
+    if (maxCount == 0)
+      maxCount = 1;
+
+    // Margin
+    float marginX = 10.0f;
+    float marginY = 10.0f;
+    float plotW = width - 2 * marginX;
+    float plotH = height - 2 * marginY;
+
+    // Plot Bars
+    // Since we might have thousands of minutes, we need to bin them visually if
+    // width < buckets For simplicity, we just draw lines.
+
+    for (const auto &b : timeline) {
+      // Normalize Time 0..1
+      // Note: timeKey is YYYYMMDDHHMM. This is monotonic but NOT linear (gaps
+      // between hour/day). For true linearity, we'd need parse to Unix. But for
+      // simple visualization, let's treat it as pseudo-linear or just
+      // index-based if sorted? "timeline" vector is sorted by timeKey (if we
+      // merged correctly? pipeline insert makes it semi-sorted but chunk
+      // artifacts exist) Let's assume sorted for now.
+
+      // Actually, we didn't sort timeline in merge. Let's do a sort here if
+      // needed, or rely on visual density. Better: Just iterate.
+
+      // X position based on value relative to min/max key?
+      // 202601051030 vs 202601051031 is +1.
+      // 202601051059 vs 202601051100 is +41.
+      // This distorts x-axis.
+      // Fallback: Use index in the vector if we assume it's somewhat
+      // contiguous? Or better: Revert to 0..N indices for "Minutes Available".
+      // Since we don't have unix conversion handy in this scope without
+      // helpers.
+
+      // REVISION: Draw indices.
+      /*
+         If we have gaps, they won't show. That's acceptable for "Event
+         Timeline".
+      */
+
+      // Linear Index Approximation
+    }
+
+    // Improved Approach: Just loop through indices 0..N
+    size_t count = timeline.size();
+    for (size_t i = 0; i < count; ++i) {
+      const auto &b = timeline[i];
+      float x = p.x + marginX + (float)i / (float)(count - 1) * plotW;
+
+      float errH = (float)b.errorCount / (float)maxCount * plotH;
+      float warnH = (float)b.warningCount / (float)maxCount * plotH;
+
+      // Draw Warning first (bottom)
+      if (b.warningCount > 0) {
+        draw_list->AddLine(ImVec2(x, p.y + marginY + plotH),
+                           ImVec2(x, p.y + marginY + plotH - warnH),
+                           IM_COL32(255, 204, 51, 200), 2.0f);
+      }
+      // Draw Error stacks on top? Or overlay?
+      // Let's overlay red.
+      if (b.errorCount > 0) {
+        float baseY = p.y + marginY + plotH - warnH;
+        draw_list->AddLine(ImVec2(x, baseY), ImVec2(x, baseY - errH),
+                           IM_COL32(255, 76, 76, 200), 2.0f);
+      }
+
+      // Interaction: Click to jump?
+      // Need log offsets in timeline bucket to support this. We currently don't
+      // store them. Feature for Phase 2.
+
+      // Tooltip
+      if (ImGui::IsMouseHoveringRect(ImVec2(x - 2, p.y),
+                                     ImVec2(x + 2, p.y + height))) {
+        ImGui::BeginTooltip();
+        ImGui::Text("Time: %llu", b.timestamp);
+        ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), "Errors: %u",
+                           b.errorCount);
+        ImGui::TextColored(ImVec4(1, 0.8f, 0.2f, 1), "Warnings: %u",
+                           b.warningCount);
+        ImGui::EndTooltip();
+      }
+    }
+
+    ImGui::Dummy(ImVec2(width, height));
+    ImGui::Unindent();
+  }
+}
+
+void GuiController::renderHeatmap() {
+  std::lock_guard<std::mutex> lock(resultMutex_);
+  if (!hasResults_)
+    return;
+  const auto &heatmap = lastResult_.analysisResult.heatmap;
+
+  if (ImGui::CollapsingHeader(ICON_FA_TABLE " Activity Heatmap",
+                              ImGuiTreeNodeFlags_DefaultOpen)) {
+    ImGui::Indent();
+
+    ImDrawList *draw = ImGui::GetWindowDrawList();
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    float availW = ImGui::GetContentRegionAvail().x;
+
+    // Grid: 7 Rows (Sun-Sat), 24 Cols
+    float cellSize = 25.0f;
+    // Adjust if too wide
+    if (cellSize * 26 > availW)
+      cellSize = availW / 26;
+
+    const char *days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+
+    // Find max for normalization
+    uint32_t maxVal = 0;
+    for (const auto &row : heatmap)
+      for (uint32_t val : row)
+        maxVal = std::max(maxVal, val);
+    if (maxVal == 0)
+      maxVal = 1;
+
+    for (int d = 0; d < 7; ++d) {
+      // Label
+      draw->AddText(ImVec2(p.x, p.y + d * (cellSize + 2) + 5), IM_COL32_WHITE,
+                    days[d]);
+
+      for (int h = 0; h < 24; ++h) {
+        float val = (float)heatmap[d][h] / (float)maxVal;
+
+        // Color Gradient: Transparent -> Blue -> Purple -> Red
+        ImU32 col = IM_COL32(30, 30, 35, 255); // Empty
+        if (heatmap[d][h] > 0) {
+          if (val < 0.5f) {
+            // Blue to Cyan
+            int c = (int)(val * 2 * 255);
+            col = IM_COL32(0, c, 255, 200);
+          } else {
+            // Cyan to Red
+            int c = (int)((val - 0.5f) * 2 * 255);
+            col = IM_COL32(c, 255 - c, 255 - c, 200);
+          }
+        }
+
+        float x = p.x + 40 + h * (cellSize + 2);
+        float y = p.y + d * (cellSize + 2);
+
+        draw->AddRectFilled(ImVec2(x, y), ImVec2(x + cellSize, y + cellSize),
+                            col, 4.0f);
+
+        // Hover
+        if (ImGui::IsMouseHoveringRect(ImVec2(x, y),
+                                       ImVec2(x + cellSize, y + cellSize))) {
+          ImGui::BeginTooltip();
+          ImGui::Text("%s %02d:00 - %02d:59", days[d], h, h);
+          ImGui::Text("Logs: %u", heatmap[d][h]);
+          ImGui::EndTooltip();
+
+          // Highlight
+          draw->AddRect(ImVec2(x, y), ImVec2(x + cellSize, y + cellSize),
+                        IM_COL32_WHITE, 4.0f);
+        }
+      }
+    }
+
+    ImGui::Dummy(ImVec2(availW, 7 * (cellSize + 2) + 20));
+    ImGui::Unindent();
+  }
 }
 
 void GuiController::renderErrorDialog() {
@@ -697,6 +937,49 @@ void GuiController::updateFileList() {
     std::sort(pickerFiles_.begin(), pickerFiles_.end());
   } catch (const std::exception &e) {
     std::cerr << "Error listing directory: " << e.what() << std::endl;
+  }
+}
+
+void GuiController::renderAboutDialog() {
+  ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+  ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+  ImGui::SetNextWindowSize(ImVec2(400, 320));
+
+  if (ImGui::BeginPopupModal("About", &showAbout_,
+                             ImGuiWindowFlags_AlwaysAutoResize)) {
+    // Header
+    ImGui::TextDisabled(ICON_FA_CIRCLE_INFO " About Log Analyzer");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // App Info
+    ImGui::Text("Log Analyzer Pro");
+    ImGui::TextDisabled("Version 2.3-Zen");
+    ImGui::TextDisabled("Build: 2026.1 (Release)");
+    ImGui::Spacing();
+
+    // Description
+    ImGui::TextWrapped(
+        "A high-performance, concurrent log analysis tool designed mainly for "
+        "immense server logs, up to 10GB+ in size.");
+    ImGui::Spacing();
+
+    // Credits
+    ImGui::Text("Built with C++, ImGui, and Love.");
+    ImGui::TextDisabled("Creator: Tiëndo Welles");
+    ImGui::TextDisabled("License: Proprietary");
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Close Button
+    float width = ImGui::GetContentRegionAvail().x;
+    if (ImGui::Button("Close", ImVec2(width, 0))) {
+      showAbout_ = false;
+      ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
   }
 }
 

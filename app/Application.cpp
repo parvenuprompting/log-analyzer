@@ -38,6 +38,7 @@ void Application::runHeadless(const AppRequest &request, AppResult &result,
   context.fromTs = request.fromTimestamp;
   context.toTs = request.toTimestamp;
   context.keyword = request.keyword;
+  context.customPattern = request.customPattern;
 
   // Run pipeline with progress callback
   try {

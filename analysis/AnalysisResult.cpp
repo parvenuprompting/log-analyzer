@@ -20,6 +20,19 @@ void AnalysisResult::merge(const AnalysisResult &other) {
     levelCounts[level] += count;
   }
 
+  // Merge Heatmap
+  for (size_t d = 0; d < 7; ++d) {
+    for (size_t h = 0; h < 24; ++h) {
+      heatmap[d][h] += other.heatmap[d][h];
+    }
+  }
+
+  // Merge Timeline
+  // NOTE: Simple concatenation. Sorting should happen at the end of pipeline.
+  // Ideally, specialized merging that buckets by minute would be better,
+  // but for now, append and let the GUI or finalizer sort it.
+  timeline.insert(timeline.end(), other.timeline.begin(), other.timeline.end());
+
   // Merge topErrors
   // Strategy: Combine both vectors into a map to sum counts, then recreate
   // vector

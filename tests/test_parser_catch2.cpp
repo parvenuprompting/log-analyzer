@@ -1,12 +1,13 @@
-#include "../core/LogParser.h"
+#include "../core/StandardLogParser.h"
 #include "../core/Timestamp.h"
 #include "../external/catch2/catch_amalgamated.hpp"
 
 using namespace loganalyzer;
 
 TEST_CASE("LogParser validates valid log entries", "[parser]") {
+  StandardLogParser parser;
   std::string line = "[2026-01-05 10:30:15] [ERROR] Database connection failed";
-  ParseResult result = LogParser::parse(line, 1);
+  ParseResult result = parser.parse(line, 1);
 
   REQUIRE(std::holds_alternative<LogEntry>(result));
 
@@ -22,8 +23,9 @@ TEST_CASE("LogParser validates valid log entries", "[parser]") {
 }
 
 TEST_CASE("LogParser detects bad format", "[parser]") {
+  StandardLogParser parser;
   std::string line = "Not a valid log line";
-  ParseResult result = LogParser::parse(line, 1);
+  ParseResult result = parser.parse(line, 1);
 
   REQUIRE(std::holds_alternative<ParseError>(result));
   const ParseError &error = std::get<ParseError>(result);
@@ -31,8 +33,9 @@ TEST_CASE("LogParser detects bad format", "[parser]") {
 }
 
 TEST_CASE("LogParser detects bad timestamp", "[parser]") {
+  StandardLogParser parser;
   std::string line = "[2026-99-99 10:30:15] [ERROR] Test";
-  ParseResult result = LogParser::parse(line, 1);
+  ParseResult result = parser.parse(line, 1);
 
   REQUIRE(std::holds_alternative<ParseError>(result));
   const ParseError &error = std::get<ParseError>(result);
@@ -40,8 +43,9 @@ TEST_CASE("LogParser detects bad timestamp", "[parser]") {
 }
 
 TEST_CASE("LogParser detects bad level", "[parser]") {
+  StandardLogParser parser;
   std::string line = "[2026-01-05 10:30:15] [UNKNOWN] Test";
-  ParseResult result = LogParser::parse(line, 1);
+  ParseResult result = parser.parse(line, 1);
 
   REQUIRE(std::holds_alternative<ParseError>(result));
   const ParseError &error = std::get<ParseError>(result);
@@ -49,8 +53,9 @@ TEST_CASE("LogParser detects bad level", "[parser]") {
 }
 
 TEST_CASE("LogParser detects missing message", "[parser]") {
+  StandardLogParser parser;
   std::string line = "[2026-01-05 10:30:15] [ERROR]";
-  ParseResult result = LogParser::parse(line, 1);
+  ParseResult result = parser.parse(line, 1);
 
   REQUIRE(std::holds_alternative<ParseError>(result));
   const ParseError &error = std::get<ParseError>(result);
@@ -98,24 +103,27 @@ TEST_CASE("Timestamp validation rejects invalid dates", "[timestamp]") {
 
 TEST_CASE("LogParser handles edge cases", "[parser][edge]") {
   SECTION("Empty line is rejected") {
-    ParseResult res = LogParser::parse("", 1);
+    StandardLogParser parser;
+    ParseResult res = parser.parse("", 1);
     REQUIRE(std::holds_alternative<ParseError>(res));
     CHECK(std::get<ParseError>(res).code == ParseErrorCode::BadFormat);
   }
 
   SECTION("Line too short is rejected") {
-    ParseResult res = LogParser::parse("[2026]", 2);
+    StandardLogParser parser;
+    ParseResult res = parser.parse("[2026]", 2);
     REQUIRE(std::holds_alternative<ParseError>(res));
     CHECK(std::get<ParseError>(res).code == ParseErrorCode::BadFormat);
   }
 
   SECTION("Missing closing brackets") {
     // Missing timestamp bracket
-    ParseResult res1 = LogParser::parse("[2026-01-01 10:00:00 [INFO] Msg", 3);
+    StandardLogParser parser;
+    ParseResult res1 = parser.parse("[2026-01-01 10:00:00 [INFO] Msg", 3);
     REQUIRE(std::holds_alternative<ParseError>(res1));
 
     // Missing level bracket
-    ParseResult res2 = LogParser::parse("[2026-01-01 10:00:00] [INFO Msg", 4);
+    ParseResult res2 = parser.parse("[2026-01-01 10:00:00] [INFO Msg", 4);
     REQUIRE(std::holds_alternative<ParseError>(res2));
   }
 }

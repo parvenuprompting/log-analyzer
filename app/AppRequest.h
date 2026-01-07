@@ -11,6 +11,7 @@ struct AppRequest {
   std::optional<Timestamp> fromTimestamp;
   std::optional<Timestamp> toTimestamp;
   std::optional<std::string> keyword;
+  std::string customPattern;
 };
 
 } // namespace loganalyzer

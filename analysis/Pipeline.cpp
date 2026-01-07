@@ -1,5 +1,6 @@
 #include "Pipeline.h"
-#include "../core/LogParser.h"
+#include "../core/PatternLogParser.h"
+#include "../core/StandardLogParser.h"
 #include "../io/MemoryMappedFile.h"
 #include "KeywordHitAnalyzer.h"
 #include "LevelCountAnalyzer.h"
@@ -141,6 +142,18 @@ AnalysisResult Pipeline::run(const std::string &inputPath,
     const uint64_t progressReportInterval = 1024 * 1024; // 1MB
     uint64_t bytesSinceLastReport = 0;
 
+    // Thread-local timeline aggregator
+    std::map<uint64_t, std::pair<uint32_t, uint32_t>>
+        localTimeline; // Key -> {Error, Warning}
+
+    // Setup parser
+    std::unique_ptr<ILogParser> parser;
+    if (!context.customPattern.empty()) {
+      parser = std::make_unique<PatternLogParser>(context.customPattern);
+    } else {
+      parser = std::make_unique<StandardLogParser>();
+    }
+
     while (currentPos < endOffset) {
       if (wasCancelled && *wasCancelled)
         return localResult;
@@ -161,7 +174,7 @@ AnalysisResult Pipeline::run(const std::string &inputPath,
       lineNumber++;
 
       // Parse
-      ParseResult parseResult = LogParser::parse(line, lineNumber);
+      ParseResult parseResult = parser->parse(line, lineNumber);
 
       if (std::holds_alternative<LogEntry>(parseResult)) {
         localResult.parsedLines++; // thread-local count
@@ -172,6 +185,52 @@ AnalysisResult Pipeline::run(const std::string &inputPath,
             localResult.timeRangeMatched++;
           for (auto &analyzer : analyzers) {
             analyzer->process(entry);
+          }
+
+          // --- Populate Heatmap & Timeline ---
+          if (entry.ts.month > 0) { // Valid check heuristic
+            // Calculate day of week (0=Sunday)
+            // Zeller's congruence or just std::tm if we reused it?
+            // Optimization: We manually parsed ts, so we don't have tm
+            // directly. Let's rely on a helper or basic calculation. For speed,
+            // C++20 chrono is best but we are C++17 here (mostly). Let's do a
+            // simple Zeller for Day of Week. Zeller algorithm (0=Saturday,
+            // 1=Sunday.. for the math, adjusted to 0=Sun):
+            int y = entry.ts.year;
+            int m = entry.ts.month;
+            int q = entry.ts.day;
+            if (m < 3) {
+              m += 12;
+              y -= 1;
+            }
+            int K = y % 100;
+            int J = y / 100;
+            int h = (q + 13 * (m + 1) / 5 + K + K / 4 + J / 4 + 5 * J) % 7;
+            // h is 0=Saturday, 1=Sunday...6=Friday
+            // Map to 0=Sunday...6=Saturday
+            int dayIdx = (h + 1) % 7; // Now 0=Sun, 1=Mon...6=Sat
+
+            int hourIdx = entry.ts.hour;
+            if (dayIdx >= 0 && dayIdx < 7 && hourIdx >= 0 && hourIdx < 24) {
+              localResult.heatmap[dayIdx][hourIdx]++;
+            }
+
+            // Timeline: Bucket by minute
+            // We need a monotonic timestamp.
+            // Let's assume entry.ts can convert to unix time approx or we just
+            // use the raw components. Let's use a simplified 64-bit sort key:
+            // YYYYMMDDHHMM This is sufficient for sorting and buckets.
+            uint64_t timeKey = (uint64_t)entry.ts.year * 100000000 +
+                               (uint64_t)entry.ts.month * 1000000 +
+                               (uint64_t)entry.ts.day * 10000 +
+                               (uint64_t)entry.ts.hour * 100 +
+                               (uint64_t)entry.ts.minute;
+
+            if (entry.level == LogLevel::ERROR) {
+              localTimeline[timeKey].first++;
+            } else if (entry.level == LogLevel::WARNING) {
+              localTimeline[timeKey].second++;
+            }
           }
         }
       } else {
@@ -208,6 +267,13 @@ AnalysisResult Pipeline::run(const std::string &inputPath,
     for (auto &analyzer : analyzers) {
       analyzer->finalize(localResult);
     }
+
+    // Flatten timeline map to vector
+    localResult.timeline.reserve(localTimeline.size());
+    for (const auto &[timeKey, counts] : localTimeline) {
+      localResult.timeline.push_back({timeKey, counts.first, counts.second});
+    }
+
     return localResult;
   };
 
