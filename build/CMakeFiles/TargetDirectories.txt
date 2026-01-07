@@ -1,7 +1,0 @@
-/Users/T/Documents/2026 APPS/first-cpp-project/build/CMakeFiles/imgui.dir
-/Users/T/Documents/2026 APPS/first-cpp-project/build/CMakeFiles/log_analyzer.dir
-/Users/T/Documents/2026 APPS/first-cpp-project/build/CMakeFiles/log_analyzer_gui.dir
-/Users/T/Documents/2026 APPS/first-cpp-project/build/CMakeFiles/unit_tests.dir
-/Users/T/Documents/2026 APPS/first-cpp-project/build/CMakeFiles/test.dir
-/Users/T/Documents/2026 APPS/first-cpp-project/build/CMakeFiles/edit_cache.dir
-/Users/T/Documents/2026 APPS/first-cpp-project/build/CMakeFiles/rebuild_cache.dir
