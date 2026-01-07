@@ -1,0 +1,41 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/unit_tests.dir/analysis/AnalysisResult.cpp.o"
+  "CMakeFiles/unit_tests.dir/analysis/AnalysisResult.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/analysis/KeywordHitAnalyzer.cpp.o"
+  "CMakeFiles/unit_tests.dir/analysis/KeywordHitAnalyzer.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/analysis/LevelCountAnalyzer.cpp.o"
+  "CMakeFiles/unit_tests.dir/analysis/LevelCountAnalyzer.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/analysis/Pipeline.cpp.o"
+  "CMakeFiles/unit_tests.dir/analysis/Pipeline.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/analysis/TimeRangeFilter.cpp.o"
+  "CMakeFiles/unit_tests.dir/analysis/TimeRangeFilter.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/analysis/TopErrorAnalyzer.cpp.o"
+  "CMakeFiles/unit_tests.dir/analysis/TopErrorAnalyzer.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/app/Application.cpp.o"
+  "CMakeFiles/unit_tests.dir/app/Application.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/core/ConfigManager.cpp.o"
+  "CMakeFiles/unit_tests.dir/core/ConfigManager.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/core/LogParser.cpp.o"
+  "CMakeFiles/unit_tests.dir/core/LogParser.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/core/Timestamp.cpp.o"
+  "CMakeFiles/unit_tests.dir/core/Timestamp.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/external/catch2/catch_amalgamated.cpp.o"
+  "CMakeFiles/unit_tests.dir/external/catch2/catch_amalgamated.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/io/FileWriter.cpp.o"
+  "CMakeFiles/unit_tests.dir/io/FileWriter.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/io/MemoryMappedFile.cpp.o"
+  "CMakeFiles/unit_tests.dir/io/MemoryMappedFile.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/tests/test_analyzers_catch2.cpp.o"
+  "CMakeFiles/unit_tests.dir/tests/test_analyzers_catch2.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/tests/test_main_catch2.cpp.o"
+  "CMakeFiles/unit_tests.dir/tests/test_main_catch2.cpp.o.d"
+  "CMakeFiles/unit_tests.dir/tests/test_parser_catch2.cpp.o"
+  "CMakeFiles/unit_tests.dir/tests/test_parser_catch2.cpp.o.d"
+  "unit_tests"
+  "unit_tests.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/unit_tests.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

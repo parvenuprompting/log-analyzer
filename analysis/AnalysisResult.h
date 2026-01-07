@@ -23,6 +23,8 @@ struct AnalysisResult {
 
   // Top 10 ERROR messages: (message, count), deterministically sorted
   std::vector<std::pair<std::string, uint64_t>> topErrors;
+
+  void merge(const AnalysisResult &other);
 };
 
 } // namespace loganalyzer

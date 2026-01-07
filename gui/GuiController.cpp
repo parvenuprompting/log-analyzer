@@ -1,7 +1,11 @@
 #include "GuiController.h"
+#include "../core/ConfigManager.h"
+#include "../external/IconsFontAwesome6.h"
 #include "../external/imgui/imgui.h"
+#include "imgui_stdlib.h"
 #include <algorithm>
 #include <cstring>
+#include <format>
 #include <iostream>
 #include <vector>
 
@@ -11,18 +15,15 @@ GuiController::GuiController()
     : hasResults_(false), showError_(false), shouldClose_(false),
       isAnalyzing_(false), analysisProgress_(0.0f), cancelRequested_(false),
       analysisComplete_(false), useTimeFilter_(false), useKeyword_(false),
-      showFilePicker_(false) {
-  std::memset(inputPath_, 0, sizeof(inputPath_));
-  std::memset(fromTimestamp_, 0, sizeof(fromTimestamp_));
-  std::memset(toTimestamp_, 0, sizeof(toTimestamp_));
-  std::memset(keyword_, 0, sizeof(keyword_));
-  std::memset(pickerSearch_, 0, sizeof(pickerSearch_));
-
-  // Default example
-  std::strcpy(inputPath_, "tests/sample_log.txt");
+      showFilePicker_(false), showLogViewer_(false) {
 
   // Init picker path to current directory
   currentPickerDir_ = std::filesystem::current_path();
+
+  // Load Config
+  ConfigManager::instance().load();
+  inputPath_ =
+      ConfigManager::instance().getString("inputPath", "tests/sample_log.txt");
 
   applyModernTheme();
 }
@@ -30,76 +31,125 @@ GuiController::GuiController()
 void GuiController::applyModernTheme() {
   // ... [Same theme code] ...
   ImGuiStyle &style = ImGui::GetStyle();
-  ImVec4 *colors = style.Colors;
 
-  colors[ImGuiCol_Text] = ImVec4(0.92f, 0.92f, 0.92f, 1.00f);
-  colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-  colors[ImGuiCol_WindowBg] = ImVec4(0.10f, 0.10f, 0.18f, 1.00f);
-  colors[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-  colors[ImGuiCol_PopupBg] = ImVec4(0.08f, 0.08f, 0.14f, 0.94f);
-  colors[ImGuiCol_Border] = ImVec4(0.24f, 0.27f, 0.38f, 0.50f);
-  colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-  colors[ImGuiCol_FrameBg] = ImVec4(0.06f, 0.13f, 0.24f, 1.00f);
-  colors[ImGuiCol_FrameBgHovered] = ImVec4(0.09f, 0.18f, 0.32f, 1.00f);
-  colors[ImGuiCol_FrameBgActive] = ImVec4(0.12f, 0.23f, 0.40f, 1.00f);
-  colors[ImGuiCol_TitleBg] = ImVec4(0.06f, 0.13f, 0.24f, 1.00f);
-  colors[ImGuiCol_TitleBgActive] = ImVec4(0.09f, 0.18f, 0.32f, 1.00f);
-  colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
-  colors[ImGuiCol_MenuBarBg] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-  colors[ImGuiCol_ScrollbarBg] = ImVec4(0.02f, 0.02f, 0.02f, 0.53f);
-  colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-  colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
-  colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
-  colors[ImGuiCol_CheckMark] = ImVec4(0.91f, 0.27f, 0.38f, 1.00f);
-  colors[ImGuiCol_SliderGrab] = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
-  colors[ImGuiCol_SliderGrabActive] = ImVec4(0.91f, 0.27f, 0.38f, 1.00f);
-  colors[ImGuiCol_Button] = ImVec4(0.91f, 0.27f, 0.38f, 0.80f);
-  colors[ImGuiCol_ButtonHovered] = ImVec4(0.95f, 0.35f, 0.45f, 1.00f);
-  colors[ImGuiCol_ButtonActive] = ImVec4(0.80f, 0.22f, 0.32f, 1.00f);
-  colors[ImGuiCol_Header] = ImVec4(0.09f, 0.18f, 0.32f, 1.00f);
-  colors[ImGuiCol_HeaderHovered] = ImVec4(0.12f, 0.23f, 0.40f, 1.00f);
-  colors[ImGuiCol_HeaderActive] = ImVec4(0.15f, 0.28f, 0.48f, 1.00f);
-  colors[ImGuiCol_Separator] = ImVec4(0.24f, 0.27f, 0.38f, 0.50f);
-  colors[ImGuiCol_SeparatorHovered] = ImVec4(0.91f, 0.27f, 0.38f, 0.78f);
-  colors[ImGuiCol_SeparatorActive] = ImVec4(0.91f, 0.27f, 0.38f, 1.00f);
-  colors[ImGuiCol_ResizeGrip] = ImVec4(0.26f, 0.59f, 0.98f, 0.20f);
-  colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.26f, 0.59f, 0.98f, 0.67f);
-  colors[ImGuiCol_ResizeGripActive] = ImVec4(0.26f, 0.59f, 0.98f, 0.95f);
-  colors[ImGuiCol_Tab] = ImVec4(0.09f, 0.18f, 0.32f, 1.00f);
-  colors[ImGuiCol_TabHovered] = ImVec4(0.91f, 0.27f, 0.38f, 0.80f);
-  colors[ImGuiCol_TabActive] = ImVec4(0.12f, 0.23f, 0.40f, 1.00f);
-  colors[ImGuiCol_TabUnfocused] = ImVec4(0.07f, 0.10f, 0.15f, 0.97f);
-  colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.09f, 0.18f, 0.32f, 1.00f);
-  colors[ImGuiCol_PlotLines] = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
-  colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
-  colors[ImGuiCol_PlotHistogram] = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
-  colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
-  colors[ImGuiCol_TableHeaderBg] = ImVec4(0.06f, 0.13f, 0.24f, 1.00f);
-  colors[ImGuiCol_TableBorderStrong] = ImVec4(0.24f, 0.27f, 0.38f, 1.00f);
-  colors[ImGuiCol_TableBorderLight] = ImVec4(0.18f, 0.20f, 0.28f, 1.00f);
-  colors[ImGuiCol_TableRowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-  colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
-  colors[ImGuiCol_TextSelectedBg] = ImVec4(0.91f, 0.27f, 0.38f, 0.35f);
-  colors[ImGuiCol_DragDropTarget] = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
-  colors[ImGuiCol_NavHighlight] = ImVec4(0.26f, 0.59f, 0.98f, 1.00f);
-  colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
-  colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
-  colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
-
-  style.WindowRounding = 8.0f;
-  style.ChildRounding = 6.0f;
-  style.FrameRounding = 6.0f;
-  style.PopupRounding = 6.0f;
+  // Rounding
+  style.WindowRounding = 12.0f;
+  style.ChildRounding = 12.0f;
+  style.FrameRounding = 12.0f;
+  style.GrabRounding = 12.0f;
+  style.PopupRounding = 12.0f;
   style.ScrollbarRounding = 12.0f;
-  style.GrabRounding = 6.0f;
-  style.TabRounding = 6.0f;
-  style.WindowPadding = ImVec2(12, 12);
-  style.FramePadding = ImVec2(8, 6);
-  style.ItemSpacing = ImVec2(12, 8);
+  style.TabRounding = 12.0f;
+
+  // Spacing & Padding
+  style.WindowPadding = ImVec2(20, 20);
+  style.FramePadding = ImVec2(10, 8);
+  style.ItemSpacing = ImVec2(12, 10);
   style.ItemInnerSpacing = ImVec2(8, 6);
   style.IndentSpacing = 25.0f;
-  style.ScrollbarSize = 14.0f;
+  style.ScrollbarSize = 16.0f;
   style.GrabMinSize = 12.0f;
+
+  // Borders
+  style.WindowBorderSize = 1.0f;
+  style.ChildBorderSize = 1.0f;
+  style.PopupBorderSize = 1.0f;
+  style.FrameBorderSize = 1.0f; // Subtle border for inputs
+
+  ImVec4 *colors = style.Colors;
+
+  // Glassmorphism Palette
+  ImVec4 glassBg = ImVec4(0.08f, 0.08f, 0.12f, 0.70f); // Semi-transparent dark
+  ImVec4 glassBgHover = ImVec4(0.12f, 0.12f, 0.18f, 0.75f);
+  ImVec4 glassBorder =
+      ImVec4(1.00f, 1.00f, 1.00f, 0.15f); // Subtle white border
+  ImVec4 accentColor =
+      ImVec4(0.30f, 0.79f, 0.94f, 1.00f); // Soft Cyan (#4cc9f0)
+  ImVec4 accentActive = ImVec4(0.45f, 0.04f, 0.72f, 1.00f); // Purple (#7209b7)
+  ImVec4 textBase = ImVec4(0.95f, 0.95f, 0.95f, 1.00f);
+  ImVec4 textDim = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
+
+  colors[ImGuiCol_Text] = textBase;
+  colors[ImGuiCol_TextDisabled] = textDim;
+  colors[ImGuiCol_WindowBg] = glassBg;
+  colors[ImGuiCol_ChildBg] =
+      ImVec4(0.00f, 0.00f, 0.00f, 0.20f); // Slightly darker for cards
+  colors[ImGuiCol_PopupBg] = ImVec4(0.08f, 0.08f, 0.12f, 0.95f);
+  colors[ImGuiCol_Border] = glassBorder;
+  colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+
+  // Inputs (Frames)
+  colors[ImGuiCol_FrameBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.30f);
+  colors[ImGuiCol_FrameBgHovered] = ImVec4(0.30f, 0.79f, 0.94f, 0.20f);
+  colors[ImGuiCol_FrameBgActive] = ImVec4(0.30f, 0.79f, 0.94f, 0.30f);
+
+  // Title Bar
+  colors[ImGuiCol_TitleBg] = ImVec4(0.04f, 0.04f, 0.06f, 0.80f);
+  colors[ImGuiCol_TitleBgActive] = ImVec4(0.04f, 0.04f, 0.06f, 0.80f);
+  colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
+
+  // Menu
+  colors[ImGuiCol_MenuBarBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.20f);
+
+  // Scrollbar
+  colors[ImGuiCol_ScrollbarBg] = ImVec4(0.02f, 0.02f, 0.02f, 0.00f);
+  colors[ImGuiCol_ScrollbarGrab] = ImVec4(1.00f, 1.00f, 1.00f, 0.20f);
+  colors[ImGuiCol_ScrollbarGrabHovered] = accentColor;
+  colors[ImGuiCol_ScrollbarGrabActive] = accentActive;
+
+  // Checkmark / Slider
+  colors[ImGuiCol_CheckMark] = accentColor;
+  colors[ImGuiCol_SliderGrab] = accentColor;
+  colors[ImGuiCol_SliderGrabActive] = accentActive;
+
+  // Buttons
+  colors[ImGuiCol_Button] = ImVec4(0.30f, 0.79f, 0.94f, 0.20f); // Glass button
+  colors[ImGuiCol_ButtonHovered] = ImVec4(0.30f, 0.79f, 0.94f, 0.40f);
+  colors[ImGuiCol_ButtonActive] = ImVec4(0.30f, 0.79f, 0.94f, 0.60f);
+
+  // Headers (CollapsingHeader, etc)
+  colors[ImGuiCol_Header] = ImVec4(1.00f, 1.00f, 1.00f, 0.05f);
+  colors[ImGuiCol_HeaderHovered] = ImVec4(1.00f, 1.00f, 1.00f, 0.10f);
+  colors[ImGuiCol_HeaderActive] = ImVec4(1.00f, 1.00f, 1.00f, 0.15f);
+
+  // Separator
+  colors[ImGuiCol_Separator] = glassBorder;
+  colors[ImGuiCol_SeparatorHovered] = accentColor;
+  colors[ImGuiCol_SeparatorActive] = accentColor;
+
+  // Resize Grip
+  colors[ImGuiCol_ResizeGrip] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+  colors[ImGuiCol_ResizeGripHovered] = ImVec4(1.00f, 1.00f, 1.00f, 0.10f);
+  colors[ImGuiCol_ResizeGripActive] = ImVec4(1.00f, 1.00f, 1.00f, 0.20f);
+
+  // Tabs
+  colors[ImGuiCol_Tab] = ImVec4(1.00f, 1.00f, 1.00f, 0.05f);
+  colors[ImGuiCol_TabHovered] = ImVec4(0.30f, 0.79f, 0.94f, 0.40f);
+  colors[ImGuiCol_TabActive] =
+      ImVec4(0.30f, 0.79f, 0.94f, 0.60f); // Active tab is bright
+  colors[ImGuiCol_TabUnfocused] = ImVec4(1.00f, 1.00f, 1.00f, 0.02f);
+  colors[ImGuiCol_TabUnfocusedActive] = ImVec4(1.00f, 1.00f, 1.00f, 0.10f);
+
+  // Plot
+  colors[ImGuiCol_PlotLines] = accentColor;
+  colors[ImGuiCol_PlotLinesHovered] = textBase;
+  colors[ImGuiCol_PlotHistogram] = accentColor;
+  colors[ImGuiCol_PlotHistogramHovered] = accentActive;
+
+  // Table
+  colors[ImGuiCol_TableHeaderBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.20f);
+  colors[ImGuiCol_TableBorderStrong] = glassBorder;
+  colors[ImGuiCol_TableBorderLight] = ImVec4(1.00f, 1.00f, 1.00f, 0.05f);
+  colors[ImGuiCol_TableRowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+  colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.02f);
+
+  // Text Selection
+  colors[ImGuiCol_TextSelectedBg] = ImVec4(0.30f, 0.79f, 0.94f, 0.35f);
+  colors[ImGuiCol_DragDropTarget] = accentColor;
+  colors[ImGuiCol_NavHighlight] = accentColor;
+  colors[ImGuiCol_NavWindowingHighlight] = textBase;
+  colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.50f);
+  colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.60f);
 }
 
 void GuiController::render() {
@@ -108,42 +158,119 @@ void GuiController::render() {
   }
 
   ImGui::SetNextWindowSize(ImVec2(900, 700), ImGuiCond_FirstUseEver);
-  ImGui::Begin("Log Analyzer Pro", &shouldClose_, ImGuiWindowFlags_NoCollapse);
 
-  renderFileInput();
-  renderFilters();
-  renderAnalyzeButton();
-
-  if (isAnalyzing_) {
-    renderProgressBar();
+  // Render Menu Bar
+  if (ImGui::BeginMainMenuBar()) {
+    if (ImGui::BeginMenu(ICON_FA_FILE " File")) {
+      if (ImGui::MenuItem(ICON_FA_FOLDER_OPEN " Open Log...", "Ctrl+O")) {
+        showFilePicker_ = true;
+      }
+      ImGui::Separator();
+      if (ImGui::MenuItem(ICON_FA_XMARK " Exit", "Alt+F4")) {
+        shouldClose_ = true;
+      }
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu(ICON_FA_GEARS " Tools")) {
+      if (ImGui::MenuItem(ICON_FA_TRASH " Clear Results", nullptr, false,
+                          hasResults_)) {
+        hasResults_ = false;
+      }
+      ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu(ICON_FA_CIRCLE_INFO " Help")) {
+      if (ImGui::MenuItem("About Log Analyzer")) {
+        // TODO: About dialog
+      }
+      ImGui::EndMenu();
+    }
+    ImGui::EndMainMenuBar();
   }
 
-  if (hasResults_) {
-    renderResults();
+  ImGui::Begin("Log Analyzer Pro", &shouldClose_);
+
+  // Main scrollable area
+  if (ImGui::BeginChild("MainRegion", ImVec2(0, -45), false,
+                        ImGuiWindowFlags_None)) {
+    if (ImGui::BeginTabBar("MainTabs")) {
+      if (ImGui::BeginTabItem(ICON_FA_CHART_BAR " Dashboard")) {
+        renderFileInput();
+        renderFilters();
+        renderAnalyzeButton();
+
+        if (isAnalyzing_) {
+          renderProgressBar();
+        }
+
+        if (hasResults_) {
+          renderResults();
+        }
+        ImGui::EndTabItem();
+      }
+
+      if (ImGui::BeginTabItem(ICON_FA_FILE_LINES " Log Viewer")) {
+        if (!logFile_ || !logFile_->isOpen()) {
+          if (ImGui::Button(ICON_FA_FOLDER_OPEN
+                            " Open Current File for Viewing")) {
+            openLogForViewing(inputPath_);
+          }
+        }
+        renderLogViewer();
+        ImGui::EndTabItem();
+      }
+      ImGui::EndTabBar();
+    }
+    ImGui::EndChild();
   }
 
-  ImGui::End();
+  // Footer / Copyright
+  ImGui::Separator();
+  ImGui::TextDisabled(ICON_FA_COPYRIGHT
+                      " 2026 Tiëndo Welles | Log Analyzer Pro v2.3-Zen");
 
-  // Dialogs
+  ImGui::SameLine(ImGui::GetWindowWidth() - 160);
+
+  // Dynamic Toggle Button
+  bool isFull =
+      (ImGui::GetWindowWidth() >= ImGui::GetMainViewport()->Size.x - 20.0f);
+  const char *btnLabel =
+      isFull ? ICON_FA_COMPRESS " Restore" : ICON_FA_EXPAND " Fill Screen";
+
+  if (ImGui::SmallButton(btnLabel)) {
+    if (!isFull) {
+      ImGui::SetWindowPos("Log Analyzer Pro", ImGui::GetMainViewport()->Pos);
+      ImGui::SetWindowSize("Log Analyzer Pro", ImGui::GetMainViewport()->Size);
+    } else {
+      ImGui::SetWindowSize("Log Analyzer Pro", ImVec2(1000, 750));
+      ImGui::SetWindowPos("Log Analyzer Pro", ImVec2(50, 50));
+    }
+  }
+
+  // Dialogs (Must be inside the window that calls OpenPopup)
   if (showFilePicker_) {
+    if (!ImGui::IsPopupOpen("File Picker")) {
+      ImGui::OpenPopup("File Picker");
+    }
     renderFilePicker();
   }
 
   if (showError_) {
     renderErrorDialog();
   }
+
+  ImGui::End();
 }
 
 void GuiController::renderFileInput() {
-  ImGui::SeparatorText("📁 Input File");
+  ImGui::SeparatorText(ICON_FA_FOLDER " Input File");
 
   float buttonWidth = 100.0f;
   ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - buttonWidth - 10);
-  ImGui::InputTextWithHint("##input", "Path to log file...", inputPath_,
-                           sizeof(inputPath_));
+  ImGui::InputTextWithHint("##input", "Path to log file...", &inputPath_);
 
   ImGui::SameLine();
-  if (ImGui::Button("Browse...", ImVec2(buttonWidth, 0))) {
+  if (ImGui::Button(ICON_FA_MAGNIFYING_GLASS " Browse...",
+                    ImVec2(buttonWidth, 0))) {
     showFilePicker_ = true;
     updateFileList();
     ImGui::OpenPopup("File Picker");
@@ -153,20 +280,18 @@ void GuiController::renderFileInput() {
 }
 
 void GuiController::renderFilters() {
-  ImGui::SeparatorText("🔍 Filters (Optional)");
+  ImGui::SeparatorText(ICON_FA_FILTER " Filters (Optional)");
 
   ImGui::Checkbox("Time Range", &useTimeFilter_);
   if (useTimeFilter_) {
     ImGui::Indent();
     ImGui::SetNextItemWidth(300);
-    ImGui::InputTextWithHint("##from", "YYYY-MM-DD HH:MM:SS", fromTimestamp_,
-                             sizeof(fromTimestamp_));
+    ImGui::InputTextWithHint("##from", "YYYY-MM-DD HH:MM:SS", &fromTimestamp_);
     ImGui::SameLine();
     ImGui::TextDisabled("From");
 
     ImGui::SetNextItemWidth(300);
-    ImGui::InputTextWithHint("##to", "YYYY-MM-DD HH:MM:SS", toTimestamp_,
-                             sizeof(toTimestamp_));
+    ImGui::InputTextWithHint("##to", "YYYY-MM-DD HH:MM:SS", &toTimestamp_);
     ImGui::SameLine();
     ImGui::TextDisabled("To");
     ImGui::Unindent();
@@ -177,7 +302,7 @@ void GuiController::renderFilters() {
     ImGui::Indent();
     ImGui::SetNextItemWidth(400);
     ImGui::InputTextWithHint("##keyword", "Search term (case-sensitive)...",
-                             keyword_, sizeof(keyword_));
+                             &keyword_);
     ImGui::Unindent();
   }
 
@@ -187,12 +312,12 @@ void GuiController::renderFilters() {
 void GuiController::renderAnalyzeButton() {
   if (isAnalyzing_) {
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.3f, 0.3f, 1.0f));
-    if (ImGui::Button("❌ Cancel Analysis", ImVec2(-1, 50))) {
+    if (ImGui::Button(ICON_FA_XMARK " Cancel Analysis", ImVec2(-1, 50))) {
       cancelRequested_ = true;
     }
     ImGui::PopStyleColor();
   } else {
-    if (ImGui::Button("🚀 Analyze Log", ImVec2(-1, 50))) {
+    if (ImGui::Button(ICON_FA_ROCKET " Analyze Log", ImVec2(-1, 50))) {
       startAnalysis();
     }
   }
@@ -201,29 +326,32 @@ void GuiController::renderAnalyzeButton() {
 
 void GuiController::renderProgressBar() {
   float progress = analysisProgress_.load();
-  ImGui::SeparatorText("⚡ Analysis in Progress");
-  char overlay[64];
-  snprintf(overlay, sizeof(overlay), "%.0f%%", progress * 100.0f);
-  ImGui::ProgressBar(progress, ImVec2(-1, 30), overlay);
+  ImGui::SeparatorText(ICON_FA_BOLT " Analysis in Progress");
+  std::string overlay = std::format("{:.0f}%", progress * 100.0f);
+  ImGui::ProgressBar(progress, ImVec2(-1, 30), overlay.c_str());
   ImGui::Spacing();
 }
 
 void GuiController::startAnalysis() {
-  currentRequest_.inputPath = std::string(inputPath_);
+  currentRequest_.inputPath = inputPath_;
 
   if (useTimeFilter_) {
     Timestamp from, to;
-    if (Timestamp::parse(std::string(fromTimestamp_), from)) {
+    if (Timestamp::parse(fromTimestamp_, from)) {
       currentRequest_.fromTimestamp = from;
     }
-    if (Timestamp::parse(std::string(toTimestamp_), to)) {
+    if (Timestamp::parse(toTimestamp_, to)) {
       currentRequest_.toTimestamp = to;
     }
   }
 
-  if (useKeyword_ && std::strlen(keyword_) > 0) {
-    currentRequest_.keyword = std::string(keyword_);
+  if (useKeyword_ && !keyword_.empty()) {
+    currentRequest_.keyword = keyword_;
   }
+
+  // Save Config
+  ConfigManager::instance().setString("inputPath", inputPath_);
+  ConfigManager::instance().save();
 
   isAnalyzing_ = true;
   analysisProgress_ = 0.0f;
@@ -240,7 +368,6 @@ void GuiController::startAnalysis() {
     AppResult result = app_.run(currentRequest_, callback);
 
     {
-      // Assuming resultMutex_ is a member of GuiController
       std::lock_guard<std::mutex> lock(resultMutex_);
       lastResult_ = result;
     }
@@ -277,10 +404,9 @@ bool GuiController::progressCallback(float progress) {
 }
 
 void GuiController::renderResults() {
-  // ... [Result rendering code - same as before] ...
   const auto &result = lastResult_.analysisResult;
 
-  ImGui::SeparatorText("📊 Analysis Results");
+  ImGui::SeparatorText(ICON_FA_SQUARE_POLL_VERTICAL " Analysis Results");
 
   if (ImGui::BeginTable("stats_cards", 3, ImGuiTableFlags_SizingStretchSame)) {
     ImGui::TableNextRow();
@@ -309,7 +435,7 @@ void GuiController::renderResults() {
   ImGui::Spacing();
 
   if (!result.levelCounts.empty() &&
-      ImGui::CollapsingHeader("📈 Level Counts",
+      ImGui::CollapsingHeader(ICON_FA_CHART_PIE " Level Counts",
                               ImGuiTreeNodeFlags_DefaultOpen)) {
     ImGui::Indent();
     struct LevelRow {
@@ -402,20 +528,38 @@ void GuiController::renderResults() {
       float barHeight = (values[i] / maxVal) * (height - 20);
       float x = p.x + i * (width / 3.0f);
       float y = p.y + height;
-      draw_list->AddRectFilled(ImVec2(x + 5, y - barHeight - 20),
-                               ImVec2(x + barWidth, y - 20), colors[i], 4.0f);
+
+      ImU32 colBase = colors[i];
+      ImU32 colTop = colors[i] & 0x00FFFFFF |
+                     0x99000000; // More transparent at top? Or lighter?
+      // Actually standard ImGui colors are ABGR or RGBA? using IM_COL32 which
+      // is usually R,G,B,A. Let's make top slightly transparent for glass
+      // effect
+
+      ImVec4 baseC = ImGui::ColorConvertU32ToFloat4(colors[i]);
+      ImVec4 topC = baseC;
+      topC.w = 0.6f; // Top is more transparent
+
+      draw_list->AddRectFilledMultiColor(
+          ImVec2(x + 5, y - barHeight - 20), ImVec2(x + barWidth, y - 20),
+          ImGui::ColorConvertFloat4ToU32(topC),  // Upper Left
+          ImGui::ColorConvertFloat4ToU32(topC),  // Upper Right
+          ImGui::ColorConvertFloat4ToU32(baseC), // Bottom Right
+          ImGui::ColorConvertFloat4ToU32(baseC)  // Bottom Left
+      );
+
       draw_list->AddText(ImVec2(x + 5, y - 15), IM_COL32_WHITE, labels[i]);
-      char valStr[32];
-      snprintf(valStr, sizeof(valStr), "%.0f", values[i]);
+
+      std::string valStr = std::format("{:.0f}", values[i]);
       draw_list->AddText(ImVec2(x + 5, y - barHeight - 35), IM_COL32_WHITE,
-                         valStr);
+                         valStr.c_str());
     }
     ImGui::Dummy(ImVec2(width, height));
     ImGui::Unindent();
   }
 
   if (!result.topErrors.empty() &&
-      ImGui::CollapsingHeader("🔥 Top 10 ERROR Messages",
+      ImGui::CollapsingHeader(ICON_FA_FIRE " Top 10 ERROR Messages",
                               ImGuiTreeNodeFlags_DefaultOpen)) {
     ImGui::Indent();
     struct ErrorRow {
@@ -477,7 +621,8 @@ void GuiController::renderErrorDialog() {
   ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
   if (ImGui::BeginPopupModal("Error", nullptr,
                              ImGuiWindowFlags_AlwaysAutoResize)) {
-    ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "❌ Analysis Failed");
+    ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f),
+                       ICON_FA_CIRCLE_EXCLAMATION " Analysis Failed");
     ImGui::Spacing();
     ImGui::TextWrapped("%s", errorMessage_.c_str());
     ImGui::Spacing();
@@ -494,7 +639,7 @@ void GuiController::renderFilePicker() {
   if (ImGui::BeginPopupModal("File Picker", &showFilePicker_)) {
     ImGui::Text("Current Directory: %s", currentPickerDir_.string().c_str());
 
-    if (ImGui::Button("⬆️ Up")) {
+    if (ImGui::Button(ICON_FA_ARROW_UP " Up")) {
       currentPickerDir_ = currentPickerDir_.parent_path();
       updateFileList();
     }
@@ -510,7 +655,9 @@ void GuiController::renderFilePicker() {
 
     // Dirs first
     for (const auto &dir : pickerDirs_) {
-      if (ImGui::Selectable(("📁 " + dir.filename().string()).c_str())) {
+      if (ImGui::Selectable(
+              (std::string(ICON_FA_FOLDER) + " " + dir.filename().string())
+                  .c_str())) {
         currentPickerDir_ = dir;
         updateFileList();
       }
@@ -518,13 +665,13 @@ void GuiController::renderFilePicker() {
 
     // Files second
     for (const auto &file : pickerFiles_) {
-      if (ImGui::Selectable(("📄 " + file.filename().string()).c_str())) {
+      if (ImGui::Selectable(
+              (std::string(ICON_FA_FILE) + " " + file.filename().string())
+                  .c_str())) {
         std::string pathStr = file.string();
-        if (pathStr.length() < sizeof(inputPath_)) {
-          std::strcpy(inputPath_, pathStr.c_str());
-          showFilePicker_ = false;
-          ImGui::CloseCurrentPopup();
-        }
+        inputPath_ = pathStr;
+        showFilePicker_ = false;
+        ImGui::CloseCurrentPopup();
       }
     }
 
@@ -546,7 +693,6 @@ void GuiController::updateFileList() {
         pickerFiles_.push_back(entry.path());
       }
     }
-    // Simple alpha sort
     std::sort(pickerDirs_.begin(), pickerDirs_.end());
     std::sort(pickerFiles_.begin(), pickerFiles_.end());
   } catch (const std::exception &e) {

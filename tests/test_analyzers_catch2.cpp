@@ -11,10 +11,12 @@ TEST_CASE("LevelCountAnalyzer counts entries correctly", "[analyzer]") {
   LevelCountAnalyzer analyzer;
   AnalysisResult result;
 
-  LogEntry e1 = {{2026, 1, 5, 10, 30, 15}, LogLevel::ERROR, "Test error"};
-  LogEntry e2 = {{2026, 1, 5, 10, 30, 16}, LogLevel::ERROR, "Another error"};
-  LogEntry e3 = {{2026, 1, 5, 10, 30, 17}, LogLevel::WARNING, "Test warning"};
-  LogEntry e4 = {{2026, 1, 5, 10, 30, 18}, LogLevel::INFO, "Test info"};
+  LogEntry e1 = {{2026, 1, 5, 10, 30, 15}, LogLevel::ERROR, "", "Test error"};
+  LogEntry e2 = {
+      {2026, 1, 5, 10, 30, 16}, LogLevel::ERROR, "", "Another error"};
+  LogEntry e3 = {
+      {2026, 1, 5, 10, 30, 17}, LogLevel::WARNING, "", "Test warning"};
+  LogEntry e4 = {{2026, 1, 5, 10, 30, 18}, LogLevel::INFO, "", "Test info"};
 
   analyzer.process(e1);
   analyzer.process(e2);
@@ -31,11 +33,14 @@ TEST_CASE("KeywordHitAnalyzer counts keyword hits", "[analyzer]") {
   KeywordHitAnalyzer analyzer("database");
   AnalysisResult result;
 
-  LogEntry e1 = {
-      {2026, 1, 5, 10, 30, 15}, LogLevel::ERROR, "database connection failed"};
-  LogEntry e2 = {{2026, 1, 5, 10, 30, 16}, LogLevel::ERROR, "network timeout"};
+  LogEntry e1 = {{2026, 1, 5, 10, 30, 15},
+                 LogLevel::ERROR,
+                 "",
+                 "database connection failed"};
+  LogEntry e2 = {
+      {2026, 1, 5, 10, 30, 16}, LogLevel::ERROR, "", "network timeout"};
   LogEntry e3 = {
-      {2026, 1, 5, 10, 30, 17}, LogLevel::WARNING, "The database is slow"};
+      {2026, 1, 5, 10, 30, 17}, LogLevel::WARNING, "", "The database is slow"};
 
   analyzer.process(e1);
   analyzer.process(e2);
@@ -81,10 +86,10 @@ TEST_CASE("TopErrorAnalyzer deterministic sorting", "[analyzer][determinism]") {
   AnalysisResult result;
 
   // Create entries with same count to test tie-breaking
-  LogEntry e1 = {{2026, 1, 5, 10, 30, 15}, LogLevel::ERROR, "zebra error"};
-  LogEntry e2 = {{2026, 1, 5, 10, 30, 16}, LogLevel::ERROR, "alpha error"};
-  LogEntry e3 = {{2026, 1, 5, 10, 30, 17}, LogLevel::ERROR, "zebra error"};
-  LogEntry e4 = {{2026, 1, 5, 10, 30, 18}, LogLevel::ERROR, "alpha error"};
+  LogEntry e1 = {{2026, 1, 5, 10, 30, 15}, LogLevel::ERROR, "", "zebra error"};
+  LogEntry e2 = {{2026, 1, 5, 10, 30, 16}, LogLevel::ERROR, "", "alpha error"};
+  LogEntry e3 = {{2026, 1, 5, 10, 30, 17}, LogLevel::ERROR, "", "zebra error"};
+  LogEntry e4 = {{2026, 1, 5, 10, 30, 18}, LogLevel::ERROR, "", "alpha error"};
 
   analyzer.process(e1);
   analyzer.process(e2);
@@ -111,7 +116,7 @@ TEST_CASE("TopErrorAnalyzer bounded map strategy", "[analyzer][determinism]") {
       std::string msg = "error_" + std::to_string(i);
       // Create entries with varying counts (inverse: later = more frequent)
       for (int j = 0; j <= (14 - i); j++) {
-        LogEntry e = {{2026, 1, 5, 10, 30, 15}, LogLevel::ERROR, msg};
+        LogEntry e = {{2026, 1, 5, 10, 30, 15}, LogLevel::ERROR, "", msg};
         analyzer.process(e);
       }
     }

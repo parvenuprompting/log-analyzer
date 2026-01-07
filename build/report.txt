@@ -1,0 +1,26 @@
+=== Log Analysis Report ===
+Input: ../tests/sample_log.txt
+Run: 2026-01-07 22:43:28
+
+--- Counters ---
+Total lines: 0
+Parsed lines: 25
+Invalid lines: 4
+
+--- Parse Errors ---
+BadFormat: 2
+BadLevel: 1
+MissingMessage: 1
+
+--- Level Counts ---
+ERROR: 11
+WARNING: 6
+INFO: 8
+
+--- Top 10 ERROR Messages ---
+1. Database connection timeout (5)
+2. Failed to acquire lock on resource /tmp/data.lock (3)
+3. API rate limit exceeded for client 192.168.1.100 (1)
+4. Failed to send email notification (1)
+5. Null pointer exception in payment processor (1)
+

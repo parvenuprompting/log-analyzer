@@ -4,6 +4,7 @@
 #include "../app/AppResult.h"
 #include "../app/Application.h"
 #include "../core/Timestamp.h"
+#include "../io/MemoryMappedFile.h"
 #include <atomic>
 #include <filesystem>
 #include <mutex>
@@ -46,10 +47,10 @@ private:
 
   // State
   Application app_;
-  char inputPath_[512];
-  char fromTimestamp_[32];
-  char toTimestamp_[32];
-  char keyword_[128];
+  std::string inputPath_;
+  std::string fromTimestamp_;
+  std::string toTimestamp_;
+  std::string keyword_;
 
   bool hasResults_;
   AppResult lastResult_;
@@ -77,7 +78,14 @@ private:
   std::filesystem::path currentPickerDir_;
   std::vector<std::filesystem::path> pickerFiles_;
   std::vector<std::filesystem::path> pickerDirs_;
-  char pickerSearch_[64];
+  std::string pickerSearch_;
+
+  // Log Viewer
+  void renderLogViewer();
+  std::unique_ptr<MemoryMappedFile> logFile_;
+  std::vector<size_t> lineOffsets_; // Cache of line start positions
+  bool showLogViewer_;
+  void openLogForViewing(const std::string &path);
 };
 
 } // namespace loganalyzer

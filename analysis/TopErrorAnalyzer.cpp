@@ -6,7 +6,7 @@ namespace loganalyzer {
 void TopErrorAnalyzer::process(const LogEntry &entry) {
   // Only track ERROR level messages
   if (entry.level == LogLevel::ERROR) {
-    errorCounts_[entry.message]++;
+    errorCounts_[std::string(entry.message)]++;
   }
 }
 

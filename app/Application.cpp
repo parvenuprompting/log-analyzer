@@ -1,7 +1,7 @@
 #include "Application.h"
 #include "../analysis/AnalysisContext.h"
 #include "../analysis/Pipeline.h"
-#include "../io/FileReader.h"
+#include "../io/MemoryMappedFile.h"
 
 namespace loganalyzer {
 
@@ -26,15 +26,12 @@ void Application::runHeadless(const AppRequest &request, AppResult &result,
   }
 
   // Check if file exists and is readable
-  FileReader testReader(request.inputPath);
+  MemoryMappedFile testReader(request.inputPath);
   if (!testReader.isOpen()) {
     result.status = AppStatus::INPUT_IO_ERROR;
-    result.message = testReader.getError();
+    result.message = "Cannot open file (not found or permission denied)";
     return;
   }
-
-  // Get file size for progress reporting
-  testReader.close();
 
   // Build analysis context
   AnalysisContext context;

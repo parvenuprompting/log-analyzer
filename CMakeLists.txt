@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(LogAnalyzer VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -29,12 +29,14 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    ${IMGUI_DIR}/misc/cpp/imgui_stdlib.cpp
 )
 
 add_library(imgui STATIC ${IMGUI_SOURCES})
 target_include_directories(imgui PUBLIC 
     ${IMGUI_DIR} 
     ${IMGUI_DIR}/backends
+    ${IMGUI_DIR}/misc/cpp
 )
 # Link GLFW so that ImGui can find <GLFW/glfw3.h>
 target_link_libraries(imgui PUBLIC glfw)
@@ -43,12 +45,14 @@ target_link_libraries(imgui PUBLIC glfw)
 set(CORE_SOURCES
     core/LogParser.cpp
     core/Timestamp.cpp
-    io/FileReader.cpp
+    core/ConfigManager.cpp
+    io/MemoryMappedFile.cpp
     io/FileWriter.cpp
     analysis/LevelCountAnalyzer.cpp
     analysis/KeywordHitAnalyzer.cpp
     analysis/TopErrorAnalyzer.cpp
     analysis/TimeRangeFilter.cpp
+    analysis/AnalysisResult.cpp
     analysis/Pipeline.cpp
     app/Application.cpp
 )
@@ -64,6 +68,7 @@ add_executable(log_analyzer
 add_executable(log_analyzer_gui
     ${CORE_SOURCES}
     gui/GuiController.cpp
+    gui/LogViewer.cpp
     gui/main_gui.cpp
 )
 # Link imgui (which links glfw), and macOS frameworks
